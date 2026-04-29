@@ -22,6 +22,7 @@ import type {
 import { profileAudience } from "./audienceProfile";
 import type { PoliticalEvent } from "./politicalEvents";
 import { vipBadge, categoryLabel } from "./politicalEvents";
+import { findTolppaForVenue, distanceKm, type TolppaLocation } from "./tolppaLocations";
 
 export type EventCategory = "asemat" | "kulttuuri" | "urheilu" | "politiikka" | "muut";
 
@@ -55,6 +56,10 @@ export interface TimelineItem {
   endTime?: string;
   /** Ulkoinen URL johon kortin klikkaus johtaa (uusi valilehti) */
   url?: string;
+  /** Lähin/sopivin taksitolppa tapahtumalle (jos pystyttiin päättelemään). */
+  tolppa?: TolppaLocation;
+  /** Etäisyys autosta tähän tolppaan kilometreinä, jos käyttäjän GPS on tiedossa. */
+  tolppaKmFromUser?: number;
   /** Alkuperainen objekti, jotta detail-paneeli toimii */
   raw: { kind: "flight" | "train" | "ship" | "event" | "sports" | "political"; data: unknown };
 }
@@ -321,6 +326,7 @@ export function eventToTimelineItem(e: EventInfo): TimelineItem {
       ? Math.round((e.estimatedAttendance / e.capacity) * 100)
       : undefined;
 
+  const tolppaMatch = findTolppaForVenue(e.venue);
   return {
     id: `event-${e.id}`,
     category: categorizeEvent(e.name, e.venue),
@@ -337,6 +343,7 @@ export function eventToTimelineItem(e: EventInfo): TimelineItem {
     capacity: e.capacity,
     loadPct,
     endTime: e.endTime,
+    tolppa: tolppaMatch?.tolppa,
     url:
       e.infoUrl ||
       `https://www.google.com/search?q=${encodeURIComponent(`${e.name} ${e.venue} liput`)}`,
@@ -417,6 +424,7 @@ export function sportsToTimelineItem(s: SportsEvent): TimelineItem {
     Math.min(50, s.expectedAttendance / 200) +
     Math.round((audience.taxiAffinity / 100) * 30);
 
+  const tolppaMatch = findTolppaForVenue(s.venue);
   return {
     id: `sports-${s.id}`,
     category: "urheilu",
@@ -432,6 +440,7 @@ export function sportsToTimelineItem(s: SportsEvent): TimelineItem {
     capacity: s.capacity,
     loadPct:
       s.capacity > 0 ? Math.round((s.expectedAttendance / s.capacity) * 100) : undefined,
+    tolppa: tolppaMatch?.tolppa,
     url: `https://www.google.com/search?q=${encodeURIComponent(`${s.homeTeam} ${s.awayTeam} liput`)}`,
     raw: { kind: "sports", data: s },
   };
