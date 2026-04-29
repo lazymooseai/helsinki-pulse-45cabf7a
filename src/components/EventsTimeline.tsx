@@ -22,6 +22,7 @@ import {
   Plus,
   ExternalLink,
   Landmark,
+  MapPin,
 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { TRAIN_STATIONS } from "@/lib/fintraffic";
@@ -37,7 +38,10 @@ import {
   sportsToTimelineItem,
   politicalToTimelineItem,
   inWindow,
+  withTolppaDistances,
 } from "@/lib/eventCategories";
+import { useGeolocation } from "@/hooks/useGeolocation";
+import { formatTolppaLabel } from "@/lib/tolppaLocations";
 
 const CATEGORY_ICONS: Record<EventCategory, React.ReactNode> = {
   asemat: <Plane className="h-4 w-4" />,
@@ -151,6 +155,21 @@ const TimelineCard = ({ item, onClick }: TimelineCardProps) => {
         <p className="text-sm text-muted-foreground font-semibold truncate mt-1">
           {item.subtitle}
         </p>
+        {item.tolppa && (
+          <p className="flex items-center gap-1 mt-1 text-[12px] font-black uppercase tracking-wider text-primary">
+            <MapPin className="h-3.5 w-3.5" />
+            <span className="truncate">
+              {formatTolppaLabel(item.tolppa)}
+              {item.tolppaKmFromUser != null && (
+                <span className="ml-1 text-foreground/80">
+                  • {item.tolppaKmFromUser < 1
+                    ? `${Math.round(item.tolppaKmFromUser * 1000)} m`
+                    : `${item.tolppaKmFromUser.toFixed(1)} km`}
+                </span>
+              )}
+            </span>
+          </p>
+        )}
         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
           {dateBadge && (
             <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-primary/15 text-primary">
