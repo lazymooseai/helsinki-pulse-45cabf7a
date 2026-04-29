@@ -1,8 +1,15 @@
 // fetch-political-news
-// Hakee merkittavat poliittiset/kansainvaliset tapahtumat Helsingissa
-// kayttaen Lovable AI Gateway + Gemini 2.5 (web search via google_search tool).
-// Tallentaa tulokset political_events-tauluun, paivittaa olemassaolevat
-// (predicted_end_time, actual_end_time) jotta voidaan oppia ennusteista.
+// ILMAINEN versio: hakee merkittävät poliittiset/kansainväliset tapahtumat
+// Helsingissä Wikidata SPARQL -kyselyllä. Ei vaadi LLM-credittejä eikä API-avaimia.
+//
+// Lähteet:
+//   1) Wikidata SPARQL — valtiovierailut, huippukokoukset, kansainväliset
+//      konferenssit jotka pidetään Helsingissä lähitulevaisuudessa.
+//   2) (Best-effort) Eduskunnan tulevat täysistunnot — staattinen viikkokalenteri.
+//
+// Tapahtumat upsertataan political_events-tauluun. Jos rivissä on aiempi
+// predicted_end_time ja saadaan uusi end_iso, lasketaan end_error_min →
+// järjestelmä oppii kuinka hyvin loppuajat ennustettiin.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -12,119 +19,172 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const KEYWORDS = [
-  "NATO", "valtiovierailu", "huippukokous", "summit",
-  "presidentti Helsinki", "paaministeri Helsinki",
-  "eduskunta tanaan", "hallituksen kokous Helsinki",
-  "ministerikokous Helsinki", "EU kokous Helsinki",
-  "ulkomaan vieras Helsinki", "state visit Helsinki",
-];
-
-interface AiEvent {
+interface PoliticalEv {
   external_key: string;
   title: string;
   description?: string;
   location?: string;
-  category: string; // 'NATO' | 'valtiovierailu' | 'hallitus' | 'eduskunta' | 'huippukokous' | 'muu'
-  vip_level?: string; // 'presidentti' | 'paaministeri' | 'ministeri' | 'kansainvalinen'
+  category: string;
+  vip_level?: string;
   start_iso: string;
   end_iso?: string;
   predicted_end_iso?: string;
   source_url?: string;
-  confidence?: number; // 0..1
+  confidence?: number;
   reasoning?: string;
 }
 
-const SYSTEM_PROMPT = `Olet Helsingin taksinkuljettajien tilannekuva-AI.
-Tehtava: hae TANAAN ja seuraavan 48h aikana Helsingissa tapahtuvat MERKITTAVAT poliittiset
-tai kansainvaliset tilaisuudet, joilla on vaikutus taksin kysyntaan tai liikenteeseen:
-- NATO-kokoukset, ministerikokoukset
-- Hallituksen istunnot ja tiedotustilaisuudet (jos julkisia)
-- Valtiovierailut, paaministerin tai presidentin vieraat
-- EU- ja kansainvaliset huippukokoukset
-- Eduskunnan suuret aanestykset / istunnot
-- Suurlahetystojen tapahtumat (suuret juhlat)
+// ---------------------------------------------------------------------------
+// Wikidata SPARQL: tapahtumat joilla sijainti = Helsinki ja päivä >= tänään.
+// Q1757 = Helsinki. Etsitään konferensseja, huippukokouksia, valtiovierailuja.
+// ---------------------------------------------------------------------------
 
-Alta vie pikkutapahtumia (tavalliset komiteat, virkamieskokoukset).
-
-Jokaiselle tapahtumalle:
-- arvioi alkamisaika (start_iso) ja paattymisaika (end_iso) parhaalla saatavilla olevalla tarkkuudella
-- jos lopetusaikaa ei ole virallisesti kerrottu, ennusta se historiallisen tiedon perusteella ja tallenna kenttaan predicted_end_iso
-- anna external_key joka on stabiili (esim. "nato-fi-2026-04-29-helsinki")
-- anna source_url jos loydat
-- confidence 0..1 (kuinka varma alkamis-/lopetusajasta)
-
-Palauta JSON-muodossa { "events": [...] }. Jos mitaan ei loydy, palauta { "events": [] }.
-Vastaa AINA puhtaalla JSONilla, ei selityksia.`;
-
-const RESPONSE_SCHEMA = {
-  type: "object",
-  properties: {
-    events: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          external_key: { type: "string" },
-          title: { type: "string" },
-          description: { type: "string" },
-          location: { type: "string" },
-          category: { type: "string" },
-          vip_level: { type: "string" },
-          start_iso: { type: "string" },
-          end_iso: { type: "string" },
-          predicted_end_iso: { type: "string" },
-          source_url: { type: "string" },
-          confidence: { type: "number" },
-          reasoning: { type: "string" },
-        },
-        required: ["external_key", "title", "category", "start_iso"],
-      },
-    },
-  },
-  required: ["events"],
-};
-
-async function callGemini(): Promise<AiEvent[]> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY puuttuu");
-
-  const today = new Date().toISOString().slice(0, 10);
-  const userPrompt = `Paivamaara: ${today}. Avainsanoja: ${KEYWORDS.join(", ")}.
-Hae uusinta tietoa webista. Palauta JSON-objekti.`;
-
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: {
-        type: "json_schema",
-        json_schema: { name: "political_events", schema: RESPONSE_SCHEMA, strict: false },
-      },
-    }),
-  });
-
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`AI gateway ${res.status}: ${txt}`);
+const SPARQL = `
+SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ?endDate ?typeLabel ?article WHERE {
+  ?item wdt:P585|wdt:P580 ?date.
+  OPTIONAL { ?item wdt:P582 ?endDate. }
+  ?item (wdt:P276|wdt:P17) ?place.
+  ?place rdfs:label ?placeLabel.
+  FILTER(LANG(?placeLabel) IN ("fi","en"))
+  FILTER(CONTAINS(LCASE(?placeLabel), "helsink"))
+  FILTER(?date >= NOW() && ?date <= "2027-12-31T00:00:00Z"^^xsd:dateTime)
+  OPTIONAL { ?item wdt:P31 ?type. }
+  OPTIONAL {
+    ?article schema:about ?item.
+    ?article schema:isPartOf <https://en.wikipedia.org/>.
   }
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content ?? "{}";
-  try {
-    const parsed = typeof content === "string" ? JSON.parse(content) : content;
-    return Array.isArray(parsed?.events) ? parsed.events : [];
-  } catch (e) {
-    console.warn("JSON parse epaonnistui:", content?.slice?.(0, 200));
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "fi,en". }
+}
+ORDER BY ?date
+LIMIT 50
+`;
+
+interface WdRow {
+  item: { value: string };
+  itemLabel?: { value: string };
+  itemDescription?: { value: string };
+  date?: { value: string };
+  endDate?: { value: string };
+  typeLabel?: { value: string };
+  article?: { value: string };
+}
+
+async function fetchWikidata(): Promise<PoliticalEv[]> {
+  const url = "https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(SPARQL);
+  const res = await fetch(url, {
+    headers: { "User-Agent": "HelsinkiTaxiPulse/1.0 (political-events)", Accept: "application/sparql-results+json" },
+  });
+  if (!res.ok) {
+    console.warn("Wikidata SPARQL", res.status, await res.text().catch(() => ""));
     return [];
   }
+  const data = await res.json() as { results?: { bindings?: WdRow[] } };
+  const rows = data.results?.bindings ?? [];
+  const events: PoliticalEv[] = [];
+  for (const r of rows) {
+    if (!r.itemLabel?.value || !r.date?.value) continue;
+    const title = r.itemLabel.value;
+    const desc = r.itemDescription?.value;
+    const start = r.date.value;
+    const end = r.endDate?.value;
+    const typeLbl = (r.typeLabel?.value || "").toLowerCase();
+    const titleLow = title.toLowerCase();
+
+    // Suodata: ohitetaan urheilukisat ja konsertit (eivät ole "poliittisia")
+    if (/cup|championship|olymp|tour de|marathon|festival/i.test(title)) continue;
+
+    // Kategoria-päättely
+    let category = "muu";
+    let vip: string | undefined;
+    if (/state visit|valtiovierailu/.test(titleLow + " " + typeLbl)) {
+      category = "valtiovierailu"; vip = "presidentti";
+    } else if (/nato/.test(titleLow)) {
+      category = "nato"; vip = "kansainvalinen";
+    } else if (/summit|huippukokous|g7|g20/.test(titleLow + " " + typeLbl)) {
+      category = "huippukokous"; vip = "kansainvalinen";
+    } else if (/eu |european council/.test(titleLow + " " + typeLbl)) {
+      category = "EU"; vip = "kansainvalinen";
+    } else if (/conference|kongressi|konferenssi/.test(titleLow + " " + typeLbl)) {
+      category = "konferenssi";
+    }
+
+    // Ennustettu loppuaika: jos virallista ei ole, oletetaan 4h kesto
+    const startMs = new Date(start).getTime();
+    const predictedEnd = end || new Date(startMs + 4 * 3600_000).toISOString();
+
+    const qid = r.item.value.split("/").pop() || title;
+    const sourceUrl = r.article?.value || `https://www.wikidata.org/wiki/${qid}`;
+
+    events.push({
+      external_key: `wd-${qid}`,
+      title,
+      description: desc,
+      location: "Helsinki",
+      category,
+      vip_level: vip,
+      start_iso: start,
+      end_iso: end,
+      predicted_end_iso: predictedEnd,
+      source_url: sourceUrl,
+      confidence: end ? 0.85 : 0.55,
+      reasoning: `Wikidata: ${typeLbl || "tapahtuma"}${end ? " (virallinen loppuaika)" : " (ennustettu 4h kesto)"}`,
+    });
+  }
+  return events;
+}
+
+/**
+ * Eduskunnan vakioistuntoaikataulu (FI):
+ *   ti, ke, to klo 14:00 — kestää tyypillisesti ~3-4h
+ *   pe klo 13:00 — kyselytunti, ~1h
+ * Tuotetaan seuraavan 14 vrk istunnot (kesä-/joulutauot eivät tunnistettu —
+ * kuljettaja voi poistaa irrelevantit manuaalisesti).
+ */
+function eduskuntaSchedule(): PoliticalEv[] {
+  const events: PoliticalEv[] = [];
+  const now = new Date();
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + i);
+    d.setHours(0, 0, 0, 0);
+    const dow = d.getDay(); // 0=su
+    let hour = 0;
+    let durMin = 0;
+    let label = "";
+    if (dow === 2 || dow === 3 || dow === 4) {
+      hour = 14; durMin = 210; label = "Eduskunnan täysistunto";
+    } else if (dow === 5) {
+      hour = 13; durMin = 60; label = "Eduskunnan kyselytunti";
+    } else {
+      continue;
+    }
+    // Karkea kesätauko (heinäkuu) ja joulutauko (22.12-7.1)
+    const m = d.getMonth();
+    const day = d.getDate();
+    if (m === 6) continue; // heinäkuu pois
+    if ((m === 11 && day >= 22) || (m === 0 && day <= 7)) continue;
+
+    const start = new Date(d);
+    start.setHours(hour, 0, 0, 0);
+    if (start.getTime() < Date.now()) continue;
+    const end = new Date(start.getTime() + durMin * 60_000);
+    const ymd = start.toISOString().slice(0, 10);
+    events.push({
+      external_key: `eduskunta-${ymd}-${hour}`,
+      title: label,
+      description: "Vakioaikataulu — voi vaihdella valiokuntakäsittelyn mukaan.",
+      location: "Eduskuntatalo, Mannerheimintie 30",
+      category: "eduskunta",
+      vip_level: "kansanedustajat",
+      start_iso: start.toISOString(),
+      end_iso: undefined,
+      predicted_end_iso: end.toISOString(),
+      source_url: "https://www.eduskunta.fi/FI/lakiensaataminen/valiokunnat/Sivut/default.aspx",
+      confidence: 0.7,
+      reasoning: "Vakioaikataulu (ti/ke/to 14:00, pe 13:00)",
+    });
+  }
+  return events;
 }
 
 Deno.serve(async (req) => {
@@ -137,9 +197,14 @@ Deno.serve(async (req) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // 1) Hae uusi data
-    const events = await callGemini();
-    console.log(`fetch-political-news: ${events.length} tapahtumaa AI:lta`);
+    // 1) Hae uusi data ilmaisista lähteistä (Wikidata + Eduskunnan kalenteri)
+    const wd = await fetchWikidata().catch((e) => {
+      console.warn("Wikidata fail:", e instanceof Error ? e.message : e);
+      return [] as PoliticalEv[];
+    });
+    const ed = eduskuntaSchedule();
+    const events = [...wd, ...ed];
+    console.log(`fetch-political-news: wikidata=${wd.length} eduskunta=${ed.length}`);
 
     let inserted = 0;
     let updated = 0;
@@ -157,7 +222,7 @@ Deno.serve(async (req) => {
         end_time: ev.end_iso ?? null,
         predicted_end_time: ev.predicted_end_iso ?? ev.end_iso ?? null,
         source_url: ev.source_url ?? null,
-        source: "gemini-search",
+        source: ev.external_key.startsWith("eduskunta-") ? "eduskunta-cal" : "wikidata",
         confidence: ev.confidence ?? null,
         reasoning: ev.reasoning ?? null,
         fetched_at: now,
