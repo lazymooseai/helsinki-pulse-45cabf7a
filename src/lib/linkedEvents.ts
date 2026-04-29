@@ -131,10 +131,33 @@ const NOISE_PATTERNS = [
   /neuvonta/i,
   /klinikka/i,
   /digiopastus/i,
+  /ilmaispäivä/i,
+  /päättynyt/i,
 ];
+
+const IMPORTANT_PATTERNS = [
+  /helsingin kaupunginteatteri/i,
+  /\bhkt\b/i,
+  /suuri näyttämö/i,
+  /suomen kansallisooppera/i,
+  /kansallisooppera/i,
+  /\booppera\b/i,
+  /musiikkitalo/i,
+  /tavastia/i,
+  /kulttuuritalo/i,
+  /bolt arena/i,
+  /olympiastadion/i,
+  /helsingin jäähalli/i,
+];
+
+function isImportantVenue(name: string, venue: string): boolean {
+  const txt = `${name} ${venue}`;
+  return IMPORTANT_PATTERNS.some((re) => re.test(txt));
+}
 
 function isNoise(name: string, venue: string): boolean {
   const txt = `${name} ${venue}`;
+  if (isImportantVenue(name, venue)) return false;
   return NOISE_PATTERNS.some((re) => re.test(txt));
 }
 
