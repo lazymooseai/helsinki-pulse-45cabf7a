@@ -19,7 +19,8 @@ interface LinkedLocation {
 }
 
 interface LinkedKeyword {
-  id: string;
+  id?: string;
+  "@id"?: string;
   name?: { fi?: string; en?: string };
 }
 
@@ -43,9 +44,13 @@ interface LinkedResponse {
 
 const VENUE_CAPACITY: Record<string, number> = {
   "kansallisooppera": 1350,
+  "suomen kansallisooppera": 1350,
   "ooppera": 1350,
   "musiikkitalo": 1700,
   "helsingin kaupunginteatteri": 1120,
+  "suuri näyttämö": 1120,
+  "studio pasila": 320,
+  "arena-näyttämö": 500,
   "kansallisteatteri": 880,
   "tanssin talo": 700,
   "savoy": 700,
@@ -58,8 +63,38 @@ const VENUE_CAPACITY: Record<string, number> = {
   "olympiastadion": 36000,
   "bolt arena": 10770,
   "nordis": 16000,
+  "helsingin jäähalli": 8200,
+  "urheilun ja liikunnan kulttuurikeskus": 1000,
   "kaisaniemi": 5000,
 };
+
+const TARGET_TEXT_QUERIES = [
+  "Helsingin Kaupunginteatteri",
+  "HKT",
+  "Suuri näyttämö",
+  "Suomen kansallisooppera",
+  "ooppera",
+  "Musiikkitalo",
+  "Tavastia",
+  "Kulttuuritalo",
+  "Savoy-teatteri",
+  "Tanssin talo",
+  "Bolt Arena",
+  "Olympiastadion",
+  "Helsingin Jäähalli",
+];
+
+const KEYWORD_QUERY = [
+  "yso:p360",   // kulttuuritapahtumat
+  "yso:p1808",  // konsertit
+  "yso:p13084", // teatteri
+  "yso:p11185", // ooppera
+  "yso:p2625",  // musiikki
+  "yso:p20421", // festivaalit
+  "yso:p965",   // urheilu
+  "yso:p916",   // jääkiekko
+  "yso:p6915",  // jalkapallo
+].join(",");
 
 function pickName(t?: { fi?: string; sv?: string; en?: string }): string {
   return t?.fi || t?.sv || t?.en || "";
@@ -96,10 +131,33 @@ const NOISE_PATTERNS = [
   /neuvonta/i,
   /klinikka/i,
   /digiopastus/i,
+  /ilmaispäivä/i,
+  /päättynyt/i,
 ];
+
+const IMPORTANT_PATTERNS = [
+  /helsingin kaupunginteatteri/i,
+  /\bhkt\b/i,
+  /suuri näyttämö/i,
+  /suomen kansallisooppera/i,
+  /kansallisooppera/i,
+  /\booppera\b/i,
+  /musiikkitalo/i,
+  /tavastia/i,
+  /kulttuuritalo/i,
+  /bolt arena/i,
+  /olympiastadion/i,
+  /helsingin jäähalli/i,
+];
+
+function isImportantVenue(name: string, venue: string): boolean {
+  const txt = `${name} ${venue}`;
+  return IMPORTANT_PATTERNS.some((re) => re.test(txt));
+}
 
 function isNoise(name: string, venue: string): boolean {
   const txt = `${name} ${venue}`;
+  if (isImportantVenue(name, venue)) return false;
   return NOISE_PATTERNS.some((re) => re.test(txt));
 }
 
@@ -128,6 +186,13 @@ function fmtTime(iso?: string): string | undefined {
   return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
 }
 
+function todayAtSameLocalClock(iso: string, now: Date): string {
+  const src = new Date(iso);
+  const d = new Date(now);
+  d.setHours(src.getHours(), src.getMinutes(), 0, 0);
+  return d.toISOString();
+}
+
 function endsInMinutes(endIso?: string, startIso?: string): number {
   if (endIso) {
     return Math.max(0, Math.round((new Date(endIso).getTime() - Date.now()) / 60000));
@@ -138,42 +203,49 @@ function endsInMinutes(endIso?: string, startIso?: string): number {
   return 0;
 }
 
+async function fetchLinkedPage(params: URLSearchParams): Promise<LinkedEvent[]> {
+  const res = await fetch(`https://api.hel.fi/linkedevents/v1/event/?${params}`, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) {
+    console.warn("LinkedEvents haku epaonnistui:", res.status);
+    return [];
+  }
+  const json = (await res.json()) as LinkedResponse;
+  return json.data ?? [];
+}
+
 /**
  * Hae LinkedEvents-tapahtumat (kulttuuri + muut). Aikaikkuna: nyt - 7 pv eteen.
  * Suodattaa duplikaatit (super_event_type=recurring) ja "kohinan" (kirjastojumpat).
  */
 export async function fetchLinkedEvents(): Promise<EventInfo[]> {
   const now = new Date();
-  const startMin = new Date(now.getTime() - 30 * 60_000); // -30 min: jo alkaneet kayvat
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const startMin = new Date(now.getTime() - 30 * 60_000); // -30 min: jo alkaneet kayvat aikajanalla
   const end = new Date(now);
   end.setDate(end.getDate() + 7);
   end.setHours(23, 59, 59, 999);
 
-  // Yhdistetty haku: kulttuuri + viihde-keywordit. yso-koodit:
-  //   p360 = kulttuuritapahtumat, p1808 = konsertit, p13084 = teatteri,
-  //   p11185 = ooppera, p2625 = musiikki, p20421 = festivaalit
-  const params = new URLSearchParams({
-    start: startMin.toISOString(),
+  const baseParams = {
+    start: todayStart.toISOString(),
     end: end.toISOString(),
     include: "location,keywords",
-    page_size: "100",
+    page_size: "60",
     language: "fi",
     sort: "start_time",
-    keyword: "yso:p360,yso:p1808,yso:p13084,yso:p11185,yso:p20421",
-  });
+  };
 
   let raw: LinkedEvent[] = [];
   try {
-    const res = await fetch(`https://api.hel.fi/linkedevents/v1/event/?${params}`, {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!res.ok) {
-      console.warn("LinkedEvents culture haku epaonnistui:", res.status);
-      return [];
-    }
-    const json = (await res.json()) as LinkedResponse;
-    raw = json.data ?? [];
+    const requests = [
+      new URLSearchParams({ ...baseParams, keyword: KEYWORD_QUERY, page_size: "100" }),
+      ...TARGET_TEXT_QUERIES.map((text) => new URLSearchParams({ ...baseParams, text })),
+    ];
+    const pages = await Promise.all(requests.map(fetchLinkedPage));
+    raw = pages.flat();
   } catch (err) {
     console.warn("LinkedEvents poikkeus:", err);
     return [];
@@ -186,17 +258,24 @@ export async function fetchLinkedEvents(): Promise<EventInfo[]> {
     if (!ev.start_time) continue;
     if (ev.super_event_type === "recurring") continue; // skipataan paataso, alalevelit tulevat omina
     const startMs = new Date(ev.start_time).getTime();
+    const endMs = ev.end_time ? new Date(ev.end_time).getTime() : startMs + 2.5 * 3600_000;
     if (startMs > end.getTime()) continue;
-    if (startMs < startMin.getTime()) continue;
 
     const name = pickName(ev.name).trim();
     if (!name) continue;
     const venue = venueName(ev.location).trim();
 
+    const isLongRunningImportant = endMs >= todayStart.getTime() && isImportantVenue(name, venue);
+    if (startMs < startMin.getTime() && !isLongRunningImportant) continue;
+
     if (isNoise(name, venue)) continue;
 
+    const displayStartIso = startMs < todayStart.getTime() && endMs >= todayStart.getTime()
+      ? todayAtSameLocalClock(ev.start_time, now)
+      : ev.start_time;
+
     // Dedupe: sama nimi + alkamispaiva
-    const dayKey = new Date(ev.start_time).toISOString().slice(0, 10);
+    const dayKey = new Date(displayStartIso || ev.start_time).toISOString().slice(0, 10);
     const key = `${name.toLowerCase()}|${dayKey}|${venue.toLowerCase()}`;
     if (seenTitles.has(key)) continue;
     seenTitles.add(key);
@@ -215,8 +294,8 @@ export async function fetchLinkedEvents(): Promise<EventInfo[]> {
       soldOut: false,
       demandTag: tag,
       demandLevel: level,
-      startTime: fmtTime(ev.start_time),
-      startIso: ev.start_time,
+      startTime: fmtTime(displayStartIso || ev.start_time),
+      startIso: displayStartIso || ev.start_time,
       endTime: fmtTime(ev.end_time),
       capacity,
       availabilityNote: pickName(ev.short_description as { fi?: string }) || undefined,

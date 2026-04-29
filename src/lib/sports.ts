@@ -48,6 +48,7 @@ interface LinkedEvent {
   start_time?: string;
   end_time?: string;
   keywords?: Array<{ "@id"?: string; name?: { fi?: string; en?: string } }>;
+  maximum_attendee_capacity?: number;
 }
 
 function getName(n?: { fi?: string; en?: string }): string {
@@ -79,6 +80,11 @@ function parseTeams(name: string): { home: string; away: string } | null {
     return { home: parts[0], away: parts[1] };
   }
   return null;
+}
+
+function isSportsLike(name: string, venue: string, keywords?: LinkedEvent["keywords"]): boolean {
+  const text = `${name} ${venue} ${(keywords ?? []).map((k) => getName(k.name)).join(" ")}`.toLowerCase();
+  return /urheilu|ottelu|match|liiga|cup|turnaus|finaali|jalkapallo|futis|jääkiekko|kiekko|hockey|koripallo|salibandy|stadion|bolt arena|jäähalli|kisahalli|olympiastadion/.test(text);
 }
 
 function attendanceEstimate(venue: string, league: string, weekday: number): number {
@@ -138,30 +144,43 @@ export async function fetchSportsEvents(): Promise<SportsEvent[]> {
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
   const todayEnd = new Date(now);
+  todayEnd.setDate(todayEnd.getDate() + 7);
   todayEnd.setHours(23, 59, 59, 999);
 
   const apiEvents: SportsEvent[] = [];
 
   try {
-    const params = new URLSearchParams({
+    const baseParams = {
       start: todayStart.toISOString(),
       end: todayEnd.toISOString(),
       include: "location,keywords",
-      page_size: "100",
+      page_size: "80",
       language: "fi",
-      keyword: "yso:p965,yso:p916,yso:p6915", // urheilu, jääkiekko, jalkapallo
-    });
+      sort: "start_time",
+    };
+    const searches = [
+      new URLSearchParams({ ...baseParams, keyword: "yso:p965,yso:p916,yso:p6915" }),
+      ...["Bolt Arena", "Olympiastadion", "Helsingin Jäähalli", "HIFK", "HJK", "Jokerit"].map((text) =>
+        new URLSearchParams({ ...baseParams, text }),
+      ),
+    ];
 
-    const res = await fetch(
-      `https://api.hel.fi/linkedevents/v1/event/?${params}`,
-      { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000) }
-    );
-
-    if (res.ok) {
+    const pages = await Promise.all(searches.map(async (params) => {
+      const res = await fetch(`https://api.hel.fi/linkedevents/v1/event/?${params}`, {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) return [] as LinkedEvent[];
       const json = await res.json();
-      const list: LinkedEvent[] = json.data ?? [];
+      return (json.data ?? []) as LinkedEvent[];
+    }));
+
+    const list = pages.flat();
+    const seen = new Set<string>();
 
       for (const ev of list) {
+        if (seen.has(ev.id)) continue;
+        seen.add(ev.id);
         if (!isActiveTodayOrSoon(ev.start_time, ev.end_time)) continue;
 
         const eventName = getName(ev.name);
@@ -169,10 +188,12 @@ export async function fetchSportsEvents(): Promise<SportsEvent[]> {
         const venue = venueFromText(locText);
         if (!venue) continue;
 
-        const teams = parseTeams(eventName);
-        if (!teams) continue;
+        const teams = parseTeams(eventName) ?? { home: eventName, away: "Urheilutapahtuma" };
+        if (!parseTeams(eventName) && !isSportsLike(eventName, venue, ev.keywords)) continue;
 
-        const cap = VENUE_CAPACITY[venue] ?? 5000;
+        const cap = ev.maximum_attendee_capacity && ev.maximum_attendee_capacity > 0
+          ? ev.maximum_attendee_capacity
+          : VENUE_CAPACITY[venue] ?? 5000;
         const weekday = new Date(ev.start_time!).getDay();
         const league = ev.keywords?.[0]?.name?.fi || "Urheilu";
         const attendance = attendanceEstimate(venue, league, weekday);
@@ -192,7 +213,6 @@ export async function fetchSportsEvents(): Promise<SportsEvent[]> {
           demandLevel: level,
         });
       }
-    }
   } catch (err) {
     console.warn("LinkedEvents urheiluhaku epaonnistui:", err);
   }

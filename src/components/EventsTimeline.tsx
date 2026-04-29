@@ -249,7 +249,12 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
     };
     for (const item of allItems) {
       if (isItemToday(item)) {
-        if (inWindow(item, maxMin)) today[item.category].push(item);
+        if (inWindow(item, maxMin)) {
+          today[item.category].push(item);
+        } else if (item.startMs > maxMin * 60_000) {
+          // Saman paivan myohemmat tapahtumat eivat saa kadota aikaikkunan taakse.
+          upcoming[item.category].push(item);
+        }
       } else if (item.startMs > 0) {
         // Tulevat paivat: ei aikaikkunarajoitusta, mutta ohi olleet pois
         upcoming[item.category].push(item);
@@ -416,7 +421,7 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
             {upcomingItems.length > 0 && (
               <div className="flex flex-col gap-2">
                 <h3 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/80 px-1 pt-1 border-t border-border/40">
-                  Tulevat paivat ({upcomingItems.length})
+                  Myohemmin / tulevat ({upcomingItems.length})
                 </h3>
                 {visibleUpcoming.map((item) => (
                   <TimelineCard key={item.id} item={item} onClick={() => onSelect?.(item)} />
