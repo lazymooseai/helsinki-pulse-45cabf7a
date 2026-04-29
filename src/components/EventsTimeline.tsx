@@ -21,6 +21,7 @@ import {
   Clock,
   Plus,
   ExternalLink,
+  Landmark,
 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { TRAIN_STATIONS } from "@/lib/fintraffic";
@@ -34,6 +35,7 @@ import {
   shipToTimelineItem,
   trainToTimelineItem,
   sportsToTimelineItem,
+  politicalToTimelineItem,
   inWindow,
 } from "@/lib/eventCategories";
 
@@ -41,6 +43,7 @@ const CATEGORY_ICONS: Record<EventCategory, React.ReactNode> = {
   asemat: <Plane className="h-4 w-4" />,
   kulttuuri: <Ticket className="h-4 w-4" />,
   urheilu: <Trophy className="h-4 w-4" />,
+  politiikka: <Landmark className="h-4 w-4" />,
   muut: <Clock className="h-4 w-4" />,
 };
 
@@ -62,6 +65,7 @@ const ITEM_ICON: Record<TimelineItem["raw"]["kind"], React.ReactNode> = {
   ship: <Ship className="h-5 w-5" />,
   event: <Ticket className="h-5 w-5" />,
   sports: <Trophy className="h-5 w-5" />,
+  political: <Landmark className="h-5 w-5" />,
 };
 
 const HARD_LIMIT_PER_TAB = 5;
