@@ -41,7 +41,7 @@ import {
   withTolppaDistances,
 } from "@/lib/eventCategories";
 import { useGeolocation } from "@/hooks/useGeolocation";
-import { formatTolppaLabel } from "@/lib/tolppaLocations";
+import { formatTolppaLabel, detectDriverArea, driverAreaLabel } from "@/lib/tolppaLocations";
 
 const CATEGORY_ICONS: Record<EventCategory, React.ReactNode> = {
   asemat: <Plane className="h-4 w-4" />,
@@ -248,6 +248,12 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
   const { state, upcomingEvents, trainStation, politicalEvents } = useDashboard();
   const { lat: userLat, lon: userLon, source: locSource } = useGeolocation();
 
+  // Päättele kuljettajan alue (dynaaminen UI: lähin vyöhyke saa prioriteetin)
+  const driverArea = useMemo(
+    () => detectDriverArea(userLat, userLon),
+    [userLat, userLon],
+  );
+
   // Aikaikkuna: 2h oletus, 4h laajennettu
   const [windowH, setWindowH] = useState<2 | 4>(2);
   // Lähellä-suodatin: kun päällä, näytetään vain ≤ 5 km säteellä autosta
@@ -321,9 +327,16 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
     const sortByWeight = (a: TimelineItem, b: TimelineItem) => {
       // Lähellä-priorisointi: jos käyttäjä on antanut GPS:n, lähemmät nousevat
       if (a.tolppaKmFromUser != null && b.tolppaKmFromUser != null) {
-        // Boostaa max +30 painopisteeseen jos < 2 km
-        const aBoost = Math.max(0, 30 - a.tolppaKmFromUser * 5);
-        const bBoost = Math.max(0, 30 - b.tolppaKmFromUser * 5);
+        // Vahva boost 0-5 km (max +60), kohtalainen 5-10 km (max +20),
+        // ei boostia >10 km. Pidetään isot tapahtumat (weight >100) silti listalla.
+        const distBoost = (km: number, weight: number) => {
+          if (km <= 5) return 60 - km * 8; // 5km->20, 0km->60
+          if (km <= 10) return 20 - (km - 5) * 4; // 10km->0
+          // Kaukaiset: jos tapahtuma muuten erityisen iso, pieni jäännös
+          return weight >= 100 ? -10 : -40;
+        };
+        const aBoost = distBoost(a.tolppaKmFromUser, a.weight);
+        const bBoost = distBoost(b.tolppaKmFromUser, b.weight);
         const aw = a.weight + aBoost;
         const bw = b.weight + bBoost;
         if (bw !== aw) return bw - aw;
@@ -378,6 +391,15 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
           <span className="text-xs font-bold text-muted-foreground/60 normal-case tracking-normal">
             {windowH === 2 ? "Nyt + 2h" : "Nyt + 4h"}
           </span>
+          {driverArea && (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-primary/15 text-primary normal-case"
+              title={`Kuljettaja lähellä ${driverArea.zone} (${driverArea.km.toFixed(1)} km)`}
+            >
+              <MapPin className="h-3 w-3" />
+              {driverAreaLabel(driverArea.zone)}
+            </span>
+          )}
         </h2>
         <div className="flex items-center gap-2">
           {userLat != null && userLon != null && (
