@@ -1,37 +1,30 @@
+import { useState } from "react";
 import { DashboardProvider } from "@/context/DashboardContext";
 import DashboardHeader from "@/components/DashboardHeader";
 import HslTicker from "@/components/HslTicker";
-import CommandCenter from "@/components/CommandCenter";
-import JackpotAlert from "@/components/JackpotAlert";
-import CapacityFeeds from "@/components/CapacityFeeds";
-import DetailTabs from "@/components/DetailTabs";
-import TrafficCameras from "@/components/TrafficCameras";
-import FeedbackButtons from "@/components/FeedbackButtons";
 import ScanButton from "@/components/ScanButton";
-import DevTools from "@/components/DevTools";
-import TripHistoryCard from "@/components/trips/TripHistoryCard";
-import TripsTabs from "@/components/trips/TripsTabs";
-import DispatchLiveCard from "@/components/DispatchLiveCard";
-import PrebookingsCard from "@/components/PrebookingsCard";
+import BottomNav, { TabKey } from "@/components/BottomNav";
+import TutkaTab from "@/components/tabs/TutkaTab";
+import LiikenneTab from "@/components/tabs/LiikenneTab";
+import SapinaTab from "@/components/tabs/SapinaTab";
+import HallintaTab from "@/components/tabs/HallintaTab";
 
 const Index = () => {
+  const [tab, setTab] = useState<TabKey>("tutka");
+
   return (
     <DashboardProvider>
-      <div className="min-h-screen bg-background pb-28">
+      <div className="min-h-screen bg-background flex flex-col">
         <DashboardHeader />
         <HslTicker />
-        <CommandCenter />
-        <FeedbackButtons />
-        <JackpotAlert />
-        <DispatchLiveCard />
-        <PrebookingsCard />
-        <CapacityFeeds />
-        <DetailTabs />
-        <TrafficCameras />
-        <TripHistoryCard />
-        <TripsTabs />
+        <main className="flex-1 pb-32">
+          {tab === "tutka" && <TutkaTab />}
+          {tab === "liikenne" && <LiikenneTab />}
+          {tab === "sapina" && <SapinaTab />}
+          {tab === "hallinta" && <HallintaTab />}
+        </main>
         <ScanButton />
-        <DevTools />
+        <BottomNav active={tab} onChange={setTab} />
       </div>
     </DashboardProvider>
   );
