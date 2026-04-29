@@ -143,9 +143,9 @@ Deno.serve(async (req) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // 1) Hae uusi data
-    const events = await callGemini();
-    console.log(`fetch-political-news: ${events.length} tapahtumaa AI:lta`);
+    // 1) Hae uusi data ilmaisista lähteistä
+    const events = await fetchWikidata();
+    console.log(`fetch-political-news: ${events.length} tapahtumaa Wikidatasta`);
 
     let inserted = 0;
     let updated = 0;
@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
         end_time: ev.end_iso ?? null,
         predicted_end_time: ev.predicted_end_iso ?? ev.end_iso ?? null,
         source_url: ev.source_url ?? null,
-        source: "gemini-search",
+        source: "wikidata",
         confidence: ev.confidence ?? null,
         reasoning: ev.reasoning ?? null,
         fetched_at: now,
