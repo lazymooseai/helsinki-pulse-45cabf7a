@@ -368,7 +368,7 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <div className="flex-1 grid grid-cols-4 gap-1">
+        <div className="flex-1 grid grid-cols-5 gap-1">
           {CATEGORY_ORDER.map((cat, i) => {
             const count = totalCounts[cat];
             const isActive = i === tabIdx;
