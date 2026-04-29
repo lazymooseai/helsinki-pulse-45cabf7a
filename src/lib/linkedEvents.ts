@@ -299,6 +299,7 @@ export async function fetchLinkedEvents(): Promise<EventInfo[]> {
       endTime: fmtTime(ev.end_time),
       capacity,
       availabilityNote: pickName(ev.short_description as { fi?: string }) || undefined,
+      infoUrl: ev.info_url?.fi || undefined,
     });
   }
 
