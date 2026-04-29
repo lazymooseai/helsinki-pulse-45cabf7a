@@ -1,5 +1,7 @@
 import { useState } from "react";
 import ArrivalsList, { TransportMode } from "@/components/ArrivalsList";
+import { useDashboard } from "@/context/DashboardContext";
+import { TRAIN_STATIONS, type TrainStation } from "@/lib/fintraffic";
 
 const FILTERS: { key: TransportMode; label: string }[] = [
   { key: "trains", label: "Junat" },
@@ -9,6 +11,7 @@ const FILTERS: { key: TransportMode; label: string }[] = [
 
 const LiikenneTab = () => {
   const [mode, setMode] = useState<TransportMode>("trains");
+  const { trainStation, setTrainStation } = useDashboard();
 
   return (
     <div className="pb-6">
@@ -33,6 +36,30 @@ const LiikenneTab = () => {
             );
           })}
         </div>
+
+        {mode === "trains" && (
+          <div className="mt-3 flex gap-2 overflow-x-auto scrollbar-none">
+            {TRAIN_STATIONS.map((s) => {
+              const active = trainStation === s.code;
+              return (
+                <button
+                  key={s.code}
+                  type="button"
+                  onClick={() => setTrainStation(s.code as TrainStation)}
+                  aria-pressed={active}
+                  className={`shrink-0 h-11 px-5 rounded-lg font-black text-sm transition-all active:scale-95 flex items-center gap-2 ${
+                    active
+                      ? "bg-accent text-accent-foreground border-2 border-accent"
+                      : "bg-muted text-muted-foreground border-2 border-border"
+                  }`}
+                >
+                  <span className="font-mono text-xs opacity-70">{s.code}</span>
+                  <span>{s.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="px-4 pt-4">
