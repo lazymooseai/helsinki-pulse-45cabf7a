@@ -21,7 +21,7 @@ import type {
 } from "./types";
 import { profileAudience } from "./audienceProfile";
 
-export type EventCategory = "asemat" | "kulttuuri" | "urheilu" | "muut";
+export type EventCategory = "asemat" | "kulttuuri" | "urheilu" | "politiikka" | "muut";
 
 export interface TimelineItem {
   id: string;
@@ -439,11 +439,12 @@ export function sportsToTimelineItem(s: SportsEvent): TimelineItem {
 // Kategoria-metadata UI:lle
 // ---------------------------------------------------------------------------
 
-export const CATEGORY_ORDER: EventCategory[] = ["asemat", "kulttuuri", "urheilu", "muut"];
+export const CATEGORY_ORDER: EventCategory[] = ["asemat", "kulttuuri", "urheilu", "politiikka", "muut"];
 
 export const CATEGORY_LABELS: Record<EventCategory, string> = {
   asemat: "Asemat",
   kulttuuri: "Kulttuuri",
   urheilu: "Urheilu",
+  politiikka: "Politiikka",
   muut: "Muut",
 };
