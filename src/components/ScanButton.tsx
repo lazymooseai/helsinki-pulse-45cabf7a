@@ -20,7 +20,7 @@ const ScanButton = () => {
 
   return (
     <>
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-1">
+      <div className="fixed bottom-24 right-4 z-50 flex flex-col items-center gap-1">
         <button
           onClick={() => setOpen(true)}
           disabled={isLoading}
