@@ -219,6 +219,39 @@ export const ZONE_CENTERS: Record<Zone, { lat: number; lon: number }> = {
   "Lentoasema": { lat: 60.3172, lon: 24.9633 },
 };
 
+/**
+ * Päättele kuljettajan "alue" GPS-sijainnin perusteella.
+ * Palauttaa lähimmän vyöhykkeen + sen etäisyyden.
+ * Käytetään dynaamiseen UI:n priorisointiin (näytetään lähimmän alueen
+ * tapahtumat ensisijaisesti).
+ */
+export function detectDriverArea(
+  lat: number | null | undefined,
+  lon: number | null | undefined,
+): { zone: Zone; km: number } | null {
+  if (lat == null || lon == null) return null;
+  let best: { zone: Zone; km: number } | null = null;
+  for (const z of ALL_ZONES) {
+    const c = ZONE_CENTERS[z];
+    const km = distanceKm(lat, lon, c.lat, c.lon);
+    if (!best || km < best.km) best = { zone: z, km };
+  }
+  return best;
+}
+
+/** Lyhyt label kuljettajan alueesta UI:ta varten ("Tikkurila", "Pasila", "Keskusta", jne.). */
+export function driverAreaLabel(zone: Zone): string {
+  switch (zone) {
+    case "Helsinki keskusta": return "Keskusta";
+    case "Helsinki itä": return "Itä-Helsinki";
+    case "Helsinki länsi": return "Länsi-Helsinki";
+    case "Helsinki pohjoinen": return "Pohjois-Helsinki";
+    case "Espoo": return "Espoo";
+    case "Vantaa": return "Vantaa";
+    case "Lentoasema": return "Lentoasema";
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Venue -> tolppa -mappi (erikoistapaukset, joissa lähin tolppa ei ole sama
 // kuin geometrian lähin). Esim. Savoy palvelee Erottaja+Kämp -yhdistettyä,
