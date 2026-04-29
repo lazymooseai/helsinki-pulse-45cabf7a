@@ -450,3 +450,57 @@ export const CATEGORY_LABELS: Record<EventCategory, string> = {
   politiikka: "Politiikka",
   muut: "Muut",
 };
+
+// ---------------------------------------------------------------------------
+// Political events -> TimelineItem
+// ---------------------------------------------------------------------------
+
+export function politicalToTimelineItem(p: PoliticalEvent): TimelineItem {
+  const startMs = new Date(p.startIso).getTime() - Date.now();
+  const time =
+    new Date(p.startIso).getHours().toString().padStart(2, "0") +
+    ":" +
+    new Date(p.startIso).getMinutes().toString().padStart(2, "0");
+  const endIso = p.endIso ?? p.predictedEndIso;
+  const endTime = endIso
+    ? new Date(endIso).getHours().toString().padStart(2, "0") +
+      ":" +
+      new Date(endIso).getMinutes().toString().padStart(2, "0")
+    : undefined;
+
+  // VIP-taso ohjaa kysyntatasoa
+  const vip = (p.vipLevel ?? "").toLowerCase();
+  const cat = (p.category ?? "").toLowerCase();
+  const isHigh =
+    vip.includes("president") ||
+    vip.includes("paaminist") ||
+    vip.includes("pääminist") ||
+    cat.includes("nato") ||
+    cat.includes("summit") ||
+    cat.includes("huippu") ||
+    cat.includes("valtio");
+  const level: "red" | "amber" | "green" = isHigh ? "red" : "amber";
+  const weight = (level === "red" ? 110 : 60) + (p.confidence ? p.confidence * 20 : 10);
+
+  const tag = categoryLabel(p.category);
+  const audienceTag = vipBadge(p.vipLevel);
+
+  return {
+    id: `political-${p.id}`,
+    category: "politiikka",
+    title: p.title,
+    subtitle: p.location || "Helsinki",
+    time,
+    startMs,
+    startIso: p.startIso,
+    level,
+    weight,
+    tag,
+    audienceTag,
+    endTime,
+    url:
+      p.sourceUrl ||
+      `https://www.google.com/search?q=${encodeURIComponent(`${p.title} Helsinki`)}`,
+    raw: { kind: "political", data: p },
+  };
+}
