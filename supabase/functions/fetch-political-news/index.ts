@@ -197,9 +197,14 @@ Deno.serve(async (req) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // 1) Hae uusi data ilmaisista lähteistä
-    const events = await fetchWikidata();
-    console.log(`fetch-political-news: ${events.length} tapahtumaa Wikidatasta`);
+    // 1) Hae uusi data ilmaisista lähteistä (Wikidata + Eduskunnan kalenteri)
+    const wd = await fetchWikidata().catch((e) => {
+      console.warn("Wikidata fail:", e instanceof Error ? e.message : e);
+      return [] as PoliticalEv[];
+    });
+    const ed = eduskuntaSchedule();
+    const events = [...wd, ...ed];
+    console.log(`fetch-political-news: wikidata=${wd.length} eduskunta=${ed.length}`);
 
     let inserted = 0;
     let updated = 0;
