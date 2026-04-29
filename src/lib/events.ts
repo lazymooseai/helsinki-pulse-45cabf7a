@@ -11,6 +11,7 @@
 
 import { EventInfo } from "./types";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchLinkedEvents } from "./linkedEvents";
 
 // ---------------------------------------------------------------------------
 // Apufunktiot
@@ -111,28 +112,52 @@ export async function fetchEventsBundle(): Promise<EventsBundle> {
   sevenDaysOut.setDate(sevenDaysOut.getDate() + 7);
   sevenDaysOut.setHours(23, 59, 59, 999);
 
-  const { data, error } = await supabase
-    .from("events")
-    .select("*")
-    .gte("start_time", start.toISOString())
-    .lte("start_time", sevenDaysOut.toISOString())
-    .order("start_time", { ascending: true });
+  // Hae rinnakkain: oma DB (manuaaliset + skrapatut) + LinkedEvents (julkinen API)
+  const [dbResult, linkedEvents] = await Promise.all([
+    supabase
+      .from("events")
+      .select("*")
+      .gte("start_time", start.toISOString())
+      .lte("start_time", sevenDaysOut.toISOString())
+      .order("start_time", { ascending: true }),
+    fetchLinkedEvents().catch((e) => {
+      console.warn("LinkedEvents fetch epaonnistui:", e);
+      return [] as EventInfo[];
+    }),
+  ]);
 
-  if (error) {
-    console.warn("fetchEventsBundle DB error:", error.message);
-    return { today: [], upcoming: [] };
+  if (dbResult.error) {
+    console.warn("fetchEventsBundle DB error:", dbResult.error.message);
   }
 
-  const rows = (data as DbEventRow[]) ?? [];
   const today: EventInfo[] = [];
   const upcoming: EventInfo[] = [];
 
+  // 1) DB-rivit (manuaaliset overridet & skrapatut) - ensisijaiset
+  const seenKeys = new Set<string>();
+  const rows = ((dbResult.data as DbEventRow[]) ?? []);
   for (const row of rows) {
     const ev = rowToEvent(row);
+    const key = `${ev.name.toLowerCase()}|${(row.start_time || "").slice(0, 10)}`;
+    seenKeys.add(key);
     if (isToday(row.start_time) && isCurrentlyActive(row.start_time, row.end_time)) {
       today.push(ev);
     } else if (!isToday(row.start_time) || new Date(row.start_time).getTime() > Date.now()) {
-      // Tuleva: ei tanaan TAI tanaan mutta ei viela aktiivinen
+      upcoming.push(ev);
+    }
+  }
+
+  // 2) LinkedEvents - lisaa duplikaattien valttamiseksi
+  for (const ev of linkedEvents) {
+    const dayKey = (ev.startIso || "").slice(0, 10);
+    const key = `${ev.name.toLowerCase()}|${dayKey}`;
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
+
+    const startIso = ev.startIso ?? "";
+    if (isToday(startIso) && isCurrentlyActive(startIso, ev.endTime ? null : null)) {
+      today.push(ev);
+    } else if (!isToday(startIso) || new Date(startIso).getTime() > Date.now()) {
       upcoming.push(ev);
     }
   }
