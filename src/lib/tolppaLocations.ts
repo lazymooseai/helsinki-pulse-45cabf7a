@@ -16,6 +16,12 @@ export interface TolppaLocation {
   lat: number;
   lon: number;
   zone: Zone;
+  /** Virallinen Taksi Helsingin tolppanumero, jos tiedossa. */
+  number?: number;
+  /** Toinen tolppanumero jos kyseessä yhdistetty tolppa (esim. Erottaja 21 + Kämp 4). */
+  number2?: number;
+  /** Lyhyt katuosoite/kuvaus näyttöön (esim. "Aleksanterinkatu"). */
+  street?: string;
 }
 
 /**
@@ -24,33 +30,36 @@ export interface TolppaLocation {
  */
 export const TOLPAT: TolppaLocation[] = [
   // === Helsinki keskusta ===
-  { name: "Rautatientori", aliases: ["Rautatieasema", "Rautatieasema P", "Asema-aukio"], lat: 60.1709, lon: 24.9419, zone: "Helsinki keskusta" },
-  { name: "Elielinaukio", aliases: ["Eliel"], lat: 60.1718, lon: 24.9396, zone: "Helsinki keskusta" },
-  { name: "Kamppi", aliases: ["Kamppi keskus", "Narinkkatori"], lat: 60.1690, lon: 24.9320, zone: "Helsinki keskusta" },
-  { name: "Simonkenttä", aliases: ["Simonkentta", "Simonkatu", "Simonaukio"], lat: 60.1696, lon: 24.9347, zone: "Helsinki keskusta" },
-  { name: "Musiikkitalo", aliases: ["Musiikkitalo Mannerheimintie"], lat: 60.1758, lon: 24.9355, zone: "Helsinki keskusta" },
-  { name: "Finlandia-talo", aliases: ["Finlandiatalo", "Finlandia talo"], lat: 60.1760, lon: 24.9389, zone: "Helsinki keskusta" },
-  { name: "Oodi", aliases: ["Keskustakirjasto"], lat: 60.1737, lon: 24.9380, zone: "Helsinki keskusta" },
-  { name: "Sanomatalo", lat: 60.1716, lon: 24.9381, zone: "Helsinki keskusta" },
-  { name: "Kiasma", lat: 60.1726, lon: 24.9367, zone: "Helsinki keskusta" },
-  { name: "Ooppera", aliases: ["Kansallisooppera", "Oopperatalo"], lat: 60.1827, lon: 24.9270, zone: "Helsinki keskusta" },
-  { name: "Linnanmäki", aliases: ["Linnanmaki"], lat: 60.1875, lon: 24.9395, zone: "Helsinki keskusta" },
+  { name: "Rautatientori", aliases: ["Rautatieasema", "Rautatieasema P", "Asema-aukio"], lat: 60.1709, lon: 24.9419, zone: "Helsinki keskusta", number: 1, street: "Kaivokatu" },
+  { name: "Elielinaukio", aliases: ["Eliel"], lat: 60.1718, lon: 24.9396, zone: "Helsinki keskusta", number: 2, street: "Elielinaukio" },
+  { name: "Aleksanterinkatu", aliases: ["Säätytalo", "Saatytalo", "Snellmaninkatu"], lat: 60.1707, lon: 24.9525, zone: "Helsinki keskusta", number: 6, street: "Aleksanterinkatu / Säätytalo" },
+  { name: "Kamppi", aliases: ["Kamppi keskus", "Narinkkatori"], lat: 60.1690, lon: 24.9320, zone: "Helsinki keskusta", number: 12, street: "Narinkkatori" },
+  { name: "Simonkenttä", aliases: ["Simonkentta", "Simonkatu", "Simonaukio"], lat: 60.1696, lon: 24.9347, zone: "Helsinki keskusta", number: 13, street: "Simonkatu" },
+  { name: "Musiikkitalo", aliases: ["Musiikkitalo Mannerheimintie"], lat: 60.1758, lon: 24.9355, zone: "Helsinki keskusta", number: 18, street: "Mannerheimintie" },
+  { name: "Finlandia-talo", aliases: ["Finlandiatalo", "Finlandia talo"], lat: 60.1760, lon: 24.9389, zone: "Helsinki keskusta", number: 19, street: "Mannerheimintie" },
+  { name: "Oodi", aliases: ["Keskustakirjasto"], lat: 60.1737, lon: 24.9380, zone: "Helsinki keskusta", street: "Töölönlahdenkatu" },
+  { name: "Sanomatalo", lat: 60.1716, lon: 24.9381, zone: "Helsinki keskusta", street: "Töölönlahdenkatu" },
+  { name: "Kiasma", lat: 60.1726, lon: 24.9367, zone: "Helsinki keskusta", street: "Mannerheiminaukio" },
+  { name: "Ooppera", aliases: ["Kansallisooppera", "Oopperatalo", "Itä-Töölö"], lat: 60.1827, lon: 24.9270, zone: "Helsinki keskusta", number: 52, street: "Helsinginkatu / Itä-Töölö" },
+  { name: "Linnanmäki", aliases: ["Linnanmaki"], lat: 60.1875, lon: 24.9395, zone: "Helsinki keskusta", street: "Tivolitie" },
   { name: "Hartwall Arena", aliases: ["Hartwall", "Areena"], lat: 60.2061, lon: 24.9293, zone: "Helsinki pohjoinen" },
   { name: "Helsinki Halli", aliases: ["Helsinki-halli"], lat: 60.2061, lon: 24.9293, zone: "Helsinki pohjoinen" },
-  { name: "Kaisaniemi", lat: 60.1733, lon: 24.9466, zone: "Helsinki keskusta" },
-  { name: "Kauppatori", aliases: ["Kolera-allas"], lat: 60.1675, lon: 24.9528, zone: "Helsinki keskusta" },
-  { name: "Senaatintori", lat: 60.1696, lon: 24.9519, zone: "Helsinki keskusta" },
-  { name: "Erottaja", aliases: ["Erottajan tolppa"], lat: 60.1660, lon: 24.9437, zone: "Helsinki keskusta" },
-  { name: "Mannerheimintie", lat: 60.1731, lon: 24.9362, zone: "Helsinki keskusta" },
-  { name: "Stockmann", lat: 60.1685, lon: 24.9418, zone: "Helsinki keskusta" },
-  { name: "Hakaniemi", lat: 60.1789, lon: 24.9518, zone: "Helsinki keskusta" },
-  { name: "Töölöntori", aliases: ["Toolontori", "Töölö"], lat: 60.1820, lon: 24.9210, zone: "Helsinki keskusta" },
-  { name: "Kallio", aliases: ["Kallion tolppa"], lat: 60.1842, lon: 24.9508, zone: "Helsinki keskusta" },
-  { name: "Sörnäinen", aliases: ["Sornainen", "Sörkkä"], lat: 60.1872, lon: 24.9601, zone: "Helsinki keskusta" },
-  { name: "Katajanokan terminaali", aliases: ["Katajanokka"], lat: 60.1664, lon: 24.9690, zone: "Helsinki keskusta" },
-  { name: "Olympiaterminaali", lat: 60.1620, lon: 24.9540, zone: "Helsinki keskusta" },
-  { name: "Länsiterminaali", aliases: ["Lansiterminaali", "LT2"], lat: 60.1542, lon: 24.9203, zone: "Helsinki länsi" },
-  { name: "Jätkäsaari", aliases: ["Jatkasaari"], lat: 60.1551, lon: 24.9180, zone: "Helsinki länsi" },
+  { name: "Kaisaniemi", lat: 60.1733, lon: 24.9466, zone: "Helsinki keskusta", street: "Kaisaniemenkatu" },
+  { name: "Kauppatori", aliases: ["Kolera-allas"], lat: 60.1675, lon: 24.9528, zone: "Helsinki keskusta", street: "Eteläranta" },
+  { name: "Senaatintori", lat: 60.1696, lon: 24.9519, zone: "Helsinki keskusta", street: "Aleksanterinkatu" },
+  { name: "Erottaja", aliases: ["Erottajan tolppa", "Savoy"], lat: 60.1660, lon: 24.9437, zone: "Helsinki keskusta", number: 21, number2: 4, street: "Erottaja / Kämp (yhdistetty)" },
+  { name: "Kämp", aliases: ["Kamp", "Kämp-tolppa"], lat: 60.1683, lon: 24.9450, zone: "Helsinki keskusta", number: 4, street: "Pohjoisesplanadi / Kämp" },
+  { name: "Mannerheimintie", lat: 60.1731, lon: 24.9362, zone: "Helsinki keskusta", street: "Mannerheimintie" },
+  { name: "Stockmann", lat: 60.1685, lon: 24.9418, zone: "Helsinki keskusta", street: "Aleksanterinkatu" },
+  { name: "Hakaniemi", lat: 60.1789, lon: 24.9518, zone: "Helsinki keskusta", street: "Hakaniementori" },
+  { name: "Töölöntori", aliases: ["Toolontori", "Töölö"], lat: 60.1820, lon: 24.9210, zone: "Helsinki keskusta", street: "Töölöntori" },
+  { name: "Kallio", aliases: ["Kallion tolppa"], lat: 60.1842, lon: 24.9508, zone: "Helsinki keskusta", street: "Helsinginkatu" },
+  { name: "Sörnäinen", aliases: ["Sornainen", "Sörkkä"], lat: 60.1872, lon: 24.9601, zone: "Helsinki keskusta", street: "Hämeentie" },
+  { name: "Kasarmikatu", aliases: ["Suomalainen Klubi", "Klubi"], lat: 60.1672, lon: 24.9498, zone: "Helsinki keskusta", number: 96, street: "Kasarmikatu / Suomalainen Klubi" },
+  { name: "Katajanokan terminaali", aliases: ["Katajanokka"], lat: 60.1664, lon: 24.9690, zone: "Helsinki keskusta", street: "Katajanokanlaituri" },
+  { name: "Olympiaterminaali", lat: 60.1620, lon: 24.9540, zone: "Helsinki keskusta", street: "Olympiaranta" },
+  { name: "Länsiterminaali", aliases: ["Lansiterminaali", "LT2"], lat: 60.1542, lon: 24.9203, zone: "Helsinki länsi", street: "Tyynenmerenkatu" },
+  { name: "Jätkäsaari", aliases: ["Jatkasaari"], lat: 60.1551, lon: 24.9180, zone: "Helsinki länsi", street: "Tyynenmerenkatu" },
 
   // === Helsinki länsi/luode ===
   { name: "Ruoholahti", lat: 60.1639, lon: 24.9150, zone: "Helsinki länsi" },
