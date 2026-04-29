@@ -120,6 +120,10 @@ interface TimelineCardProps {
 const TimelineCard = ({ item, onClick }: TimelineCardProps) => {
   const isPast = item.startMs < -5 * 60 * 1000;
   const dateBadge = formatDateBadge(item.startIso);
+  const timeLabel =
+    item.endTime && item.time && item.endTime !== item.time
+      ? `${item.time}–${item.endTime}`
+      : item.time || "—";
   return (
     <button
       onClick={onClick}
@@ -180,8 +184,12 @@ const TimelineCard = ({ item, onClick }: TimelineCardProps) => {
         </div>
       </div>
       <div className="flex flex-col items-end shrink-0">
-        <span className={`text-2xl font-mono font-black ${LEVEL_TIME_COLOR[item.level]}`}>
-          {item.time || "—"}
+        <span
+          className={`font-mono font-black ${LEVEL_TIME_COLOR[item.level]} ${
+            timeLabel.includes("–") ? "text-base leading-tight" : "text-2xl"
+          }`}
+        >
+          {timeLabel}
         </span>
         <span className="text-[10px] font-bold text-muted-foreground/70 mt-0.5">
           {formatRelative(item.startMs)}
@@ -411,8 +419,15 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
                   </p>
                 </div>
               ) : (
-                visibleToday.map((item) => (
-                  <TimelineCard key={item.id} item={item} onClick={() => onSelect?.(item)} />
+              visibleToday.map((item) => (
+                  <TimelineCard
+                    key={item.id}
+                    item={item}
+                    onClick={() => {
+                      if (item.url) window.open(item.url, "_blank", "noopener,noreferrer");
+                      onSelect?.(item);
+                    }}
+                  />
                 ))
               )}
             </div>
@@ -424,7 +439,14 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
                   Myohemmin / tulevat ({upcomingItems.length})
                 </h3>
                 {visibleUpcoming.map((item) => (
-                  <TimelineCard key={item.id} item={item} onClick={() => onSelect?.(item)} />
+                  <TimelineCard
+                    key={item.id}
+                    item={item}
+                    onClick={() => {
+                      if (item.url) window.open(item.url, "_blank", "noopener,noreferrer");
+                      onSelect?.(item);
+                    }}
+                  />
                 ))}
               </div>
             )}
