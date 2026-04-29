@@ -200,7 +200,7 @@ const TimelineCard = ({ item, onClick }: TimelineCardProps) => {
       <div className="flex flex-col items-end shrink-0">
         <span
           className={`font-mono font-black ${LEVEL_TIME_COLOR[item.level]} ${
-            timeLabel.includes("–") ? "text-base leading-tight" : "text-2xl"
+            timeLabel.includes("–") ? "text-lg leading-tight" : "text-3xl"
           }`}
         >
           {timeLabel}
