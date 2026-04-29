@@ -34,75 +34,103 @@ const MONTHS: Record<string, number> = {
   heinäkuu: 6, elokuu: 7, syyskuu: 8, lokakuu: 9, marraskuu: 10, joulukuu: 11,
 };
 
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&euro;/g, "€")
+    .replace(/&aring;/g, "å")
+    .replace(/&auml;/g, "ä")
+    .replace(/&ouml;/g, "ö")
+    .replace(/&Aring;/g, "Å")
+    .replace(/&Auml;/g, "Ä")
+    .replace(/&Ouml;/g, "Ö");
+}
+
+function stripTags(s: string): string {
+  return decodeEntities(
+    s
+      .replace(/<br\s*\/?>(\n|\s)*/g, " ")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
 function parseHtml(html: string): KlubiEvent[] {
   const events: KlubiEvent[] = [];
 
-  // Pilko monthWrapper-osioihin saadaksemme vuosi+kuukausi
-  const monthRe = /<h2 class='tapuMonth'>([A-Za-zäöÄÖ]+)\s+(\d{4})<\/h2>([\s\S]*?)(?=<h2 class='tapuMonth'>|<\/div>\s*<\/div>\s*<\/div>\s*$)/g;
-  let mMatch: RegExpExecArray | null;
-  while ((mMatch = monthRe.exec(html)) !== null) {
-    const monthName = mMatch[1].toLowerCase();
-    const year = parseInt(mMatch[2], 10);
-    const monthChunk = mMatch[3];
-    const monthIdx = MONTHS[monthName];
-    if (monthIdx == null) continue;
+  // Toimintaperiaate: kayda tapuDay-kohdat lapi (paiva sisaltaa kaikki sen
+  // paivan tapahtumat), ja jokaisen tapuDay-kohdan jalkeen poimia kaikki
+  // tapuEvent-blokit kunnes seuraava tapuDay tai monthWrapperin loppu tulee.
+  // Aikaisempi versio yritti käyttää sisäkkäisiä regexejä joiden lookahead
+  // ei mätsännyt; nyt etsitään suoraan tapuDay-tageja koko HTML:sta.
 
-    // Pilko paivakohtaisiin lohkoihin
-    const dayRe = /<h3 class='tapuDay'>[a-zäö]+,\s*(\d{2})\.(\d{2})\.(\d{4})<\/h3>([\s\S]*?)(?=<h3 class='tapuDay'>|$)/g;
-    let dMatch: RegExpExecArray | null;
-    while ((dMatch = dayRe.exec(monthChunk)) !== null) {
-      const day = parseInt(dMatch[1], 10);
-      const month = parseInt(dMatch[2], 10) - 1;
-      const yr = parseInt(dMatch[3], 10);
-      if (month !== monthIdx || yr !== year) {
-        // Datepalat ristiriidassa — luota datepalan paivamaaraan
-      }
-      const dayChunk = dMatch[4];
+  const dayHeaderRe =
+    /<h3 class='tapuDay'>[a-zäö]+,\s*(\d{2})\.(\d{2})\.(\d{4})<\/h3>/g;
+  const dayMatches: { day: number; month: number; year: number; idx: number; endIdx: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = dayHeaderRe.exec(html)) !== null) {
+    dayMatches.push({
+      day: parseInt(m[1], 10),
+      month: parseInt(m[2], 10) - 1,
+      year: parseInt(m[3], 10),
+      idx: m.index + m[0].length,
+      endIdx: -1,
+    });
+  }
+  for (let i = 0; i < dayMatches.length; i++) {
+    dayMatches[i].endIdx = i + 1 < dayMatches.length ? dayMatches[i + 1].idx : html.length;
+  }
 
-      // Yksittaiset tapahtumat
-      const eventRe = /<div class='tapuEvent[^']*'>([\s\S]*?)<\/div><\/div>/g;
-      let eMatch: RegExpExecArray | null;
-      while ((eMatch = eventRe.exec(dayChunk)) !== null) {
-        const block = eMatch[1];
-        const timeMatch = block.match(/<p class='tapuEventTime'>(\d{1,2}:\d{2})<\/p>/);
-        const priceMatch = block.match(/<p class='tapuEventPrice'>([^<]+)<\/p>/);
-        const titleMatch = block.match(/<h2><a href='([^']+)'>([\s\S]*?)<\/a><\/h2>/);
-        const venueMatch = block.match(/<span class='tapuEventLocation'>([^<]+)<\/span>/);
-        const summaryMatch = block.match(/<p class='tapuEventSummary'>([\s\S]*?)<\/p>/);
+  for (const d of dayMatches) {
+    const chunk = html.slice(d.idx, d.endIdx);
+    // Poimi kaikki tapuEvent-blokit. Ne paattyvat aina </div></div> joka
+    // sulkee tapuEventDetails + tapuEvent.
+    const eventRe =
+      /<div class='tapuEvent[^']*'>([\s\S]*?)<\/div><\/div>/g;
+    let e: RegExpExecArray | null;
+    while ((e = eventRe.exec(chunk)) !== null) {
+      const block = e[1];
+      const timeMatch = block.match(/<p class='tapuEventTime'>(\d{1,2}:\d{2})<\/p>/);
+      const titleMatch = block.match(/<h2>\s*<a href='([^']+)'>([\s\S]*?)<\/a>\s*<\/h2>/);
+      if (!timeMatch || !titleMatch) continue;
 
-        if (!titleMatch || !timeMatch) continue;
-        const url = titleMatch[1].startsWith("http")
-          ? titleMatch[1]
-          : `https://tapahtumat.klubi.fi${titleMatch[1]}`;
-        const title = titleMatch[2].replace(/<[^>]+>/g, "").trim();
-        const venue = (venueMatch?.[1] || "Suomalainen Klubi").trim();
-        const summaryRaw = (summaryMatch?.[1] || "")
-          .replace(/<br\s*\/?>(\n|\s)*/g, " ")
-          .replace(/<[^>]+>/g, "")
-          .replace(/\s+/g, " ")
-          .trim();
+      const priceMatch = block.match(/<p class='tapuEventPrice'>([^<]+)<\/p>/);
+      const venueMatch = block.match(/<span class='tapuEventLocation'>([^<]+)<\/span>/);
+      const summaryMatch = block.match(/<p class='tapuEventSummary'>([\s\S]*?)<\/p>/);
 
-        const [hh, mm] = timeMatch[1].split(":").map(Number);
-        const dt = new Date(yr, month, day, hh, mm, 0, 0);
+      const url = titleMatch[1].startsWith("http")
+        ? titleMatch[1]
+        : `https://tapahtumat.klubi.fi${titleMatch[1]}`;
+      const title = stripTags(titleMatch[2]);
+      const venue = stripTags(venueMatch?.[1] || "Suomalainen Klubi");
+      const summary = summaryMatch ? stripTags(summaryMatch[1]) : "";
 
-        const lowerAll = `${title} ${summaryRaw}`.toLowerCase();
-        const soldOut =
-          /loppuunmyyty|ilmoittautuminen p[äa]ättynyt|täynnä|tayttynyt|paikat varattu/.test(
-            lowerAll
-          );
+      const [hh, mm] = timeMatch[1].split(":").map(Number);
+      const dt = new Date(d.year, d.month, d.day, hh, mm, 0, 0);
 
-        events.push({
-          url,
-          title,
-          startIso: dt.toISOString(),
-          time: timeMatch[1],
-          venue,
-          summary: summaryRaw.slice(0, 240),
-          soldOut,
-          price: priceMatch?.[1]?.trim().replace(/&euro;/g, "€"),
-          source: "klubi",
-        });
-      }
+      const all = `${title} ${summary}`.toLowerCase();
+      const soldOut =
+        /loppuunmyyty|ilmoittautuminen p[äa]ättynyt|t[äa]ynn[äa]|tayttynyt|paikat varattu/.test(
+          all,
+        );
+
+      events.push({
+        url,
+        title,
+        startIso: dt.toISOString(),
+        time: timeMatch[1],
+        venue,
+        summary: summary.slice(0, 240),
+        soldOut,
+        price: priceMatch?.[1]?.trim().replace(/&euro;/g, "€"),
+        source: "klubi",
+      });
     }
   }
 
