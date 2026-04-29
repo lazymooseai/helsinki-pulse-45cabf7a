@@ -32,5 +32,21 @@ type: feature
 
 ## Lähteet
 - Tolppanumerot perustuvat Taksi Helsingin tunnettuihin numeroihin (käyttäjän
-  vahvistamat: 6 Aleksanterinkatu, 18 Musiikkitalo, 52 Ooppera, 21+4 Savoy/Kämp,
-  96 Suomalainen Klubi). Loput tolpat ilman numeroa.
+  vahvistamat):
+  - 6 Aleksanterinkatu / Säätytalo
+  - 11 Ruoholahti / Tanssin talo / Kaapelitehdas
+  - 14 Rautatientori / Kaupunginteatteri (HKT) → Ooppera-tolppa 52 jos tarkoitus on HKT itse
+  - 21+4 Erottaja / Kämp (Savoy)
+  - 31 Pikkuparlamentti / Hotel Presidentti
+  - 37 Asema-aukio / Elielinaukio
+  - 39 Musiikkitalo / Elielinaukion puoli
+  - 41 Museokatu / Eduskuntatalo / Storyville
+  - 52 Ooppera / Itä-Töölö (käytetään myös Helsingin kaupunginteatterille)
+  - 79 Veikkaus Areena / Helsinki Halli / Hartwall Arena
+  - 96 Kasarmikatu / Suomalainen Klubi
+
+## Dynaaminen UI (driver area)
+- `detectDriverArea(lat, lon)` palauttaa lähimmän Zonen + etäisyyden.
+- Header näyttää pienenä badgena kuljettajan alueen ("Keskusta", "Tikkurila", "Pasila"…).
+- Sortaus: 0-5 km +60→+20 boost, 5-10 km +20→0, >10 km -40 (pl. isot weight≥100 saa -10).
+  → Tikkurilassa nousee asema/lentokenttä, Pasilassa Veikkaus Areena/HKT/Ooppera, jne.
