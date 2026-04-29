@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
         end_time: ev.end_iso ?? null,
         predicted_end_time: ev.predicted_end_iso ?? ev.end_iso ?? null,
         source_url: ev.source_url ?? null,
-        source: "wikidata",
+        source: ev.external_key.startsWith("eduskunta-") ? "eduskunta-cal" : "wikidata",
         confidence: ev.confidence ?? null,
         reasoning: ev.reasoning ?? null,
         fetched_at: now,
