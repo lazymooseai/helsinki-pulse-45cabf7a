@@ -14,10 +14,10 @@ const Index = () => {
 
   return (
     <DashboardProvider>
-      <div className="min-h-screen bg-background flex flex-col">
+      <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
         <DashboardHeader />
         <HslTicker />
-        <main className="flex-1 pb-32">
+        <main className="flex-1 pb-32 w-full max-w-screen-md mx-auto">
           {tab === "tutka" && <TutkaTab />}
           {tab === "liikenne" && <LiikenneTab />}
           {tab === "sapina" && <SapinaTab />}
