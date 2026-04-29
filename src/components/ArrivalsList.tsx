@@ -1,5 +1,6 @@
-import { TrainFront, Ship, Plane } from "lucide-react";
+import { TrainFront, Ship, Plane, Users } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
+import { TRAIN_STATIONS } from "@/lib/fintraffic";
 
 export type TransportMode = "trains" | "ships" | "flights";
 
@@ -11,9 +12,10 @@ interface RowProps {
   delay?: number;
   pax?: number;
   status?: string;
+  paxProminent?: boolean;
 }
 
-const Row = ({ icon, title, sub, time, delay = 0, pax, status }: RowProps) => {
+const Row = ({ icon, title, sub, time, delay = 0, pax, status, paxProminent }: RowProps) => {
   const delayed = delay > 5;
   const slight = delay > 0 && !delayed;
   return (
@@ -32,7 +34,15 @@ const Row = ({ icon, title, sub, time, delay = 0, pax, status }: RowProps) => {
       <div className="flex-1 min-w-0">
         <p className="font-black text-xl text-foreground truncate">{title}</p>
         <p className="text-sm text-muted-foreground font-bold truncate">{sub}</p>
-        {(pax !== undefined && pax > 0) || status ? (
+        {paxProminent && pax !== undefined && pax > 0 ? (
+          <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-primary/15 px-2 py-1 text-primary">
+            <Users className="h-4 w-4" />
+            <span className="font-black text-base tabular-nums">
+              {pax.toLocaleString("fi-FI")}
+            </span>
+            <span className="text-xs font-bold uppercase opacity-80">hlö</span>
+          </div>
+        ) : (pax !== undefined && pax > 0) || status ? (
           <p className="text-xs text-muted-foreground/80 mt-0.5">
             {pax !== undefined && pax > 0 && <>{pax.toLocaleString("fi-FI")} hlö</>}
             {pax !== undefined && pax > 0 && status ? " · " : ""}
@@ -66,20 +76,25 @@ const Row = ({ icon, title, sub, time, delay = 0, pax, status }: RowProps) => {
 };
 
 const ArrivalsList = ({ mode }: { mode: TransportMode }) => {
-  const { state } = useDashboard();
+  const { state, trainStation } = useDashboard();
 
   if (mode === "trains") {
+    const stationName =
+      TRAIN_STATIONS.find((s) => s.code === trainStation)?.name ?? trainStation;
     if (state.trainDelays.length === 0) {
-      return <Empty label="Ei tulevia junia" />;
+      return <Empty label={`Ei tulevia junia – ${stationName}`} />;
     }
     return (
       <div className="space-y-3">
+        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1">
+          Saapuvat → {stationName}
+        </p>
         {state.trainDelays.map((t) => (
           <Row
             key={t.id}
             icon={<TrainFront className="h-7 w-7" />}
             title={t.line}
-            sub={t.origin}
+            sub={`${t.origin} → ${stationName}`}
             time={t.arrivalTime}
             delay={t.delayMinutes}
             pax={t.capacity}
@@ -103,6 +118,7 @@ const ArrivalsList = ({ mode }: { mode: TransportMode }) => {
             sub={s.harbor}
             time={s.eta}
             pax={s.estimatedPax ?? s.pax}
+            paxProminent
           />
         ))}
       </div>
