@@ -62,6 +62,14 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', sans-serif;
+    /* Vakauta numerot ympäri sovellusta — estää kellon ja laskureiden "heilumisen" */
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Mono-fontti aina tabulaarisilla numeroilla */
+  .font-mono, .font-mono-display {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
   }
 }
 
