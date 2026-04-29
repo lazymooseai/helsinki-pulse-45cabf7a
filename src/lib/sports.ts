@@ -48,6 +48,7 @@ interface LinkedEvent {
   start_time?: string;
   end_time?: string;
   keywords?: Array<{ "@id"?: string; name?: { fi?: string; en?: string } }>;
+  maximum_attendee_capacity?: number;
 }
 
 function getName(n?: { fi?: string; en?: string }): string {
@@ -79,6 +80,11 @@ function parseTeams(name: string): { home: string; away: string } | null {
     return { home: parts[0], away: parts[1] };
   }
   return null;
+}
+
+function isSportsLike(name: string, venue: string, keywords?: LinkedEvent["keywords"]): boolean {
+  const text = `${name} ${venue} ${(keywords ?? []).map((k) => getName(k.name)).join(" ")}`.toLowerCase();
+  return /urheilu|ottelu|match|liiga|cup|turnaus|finaali|jalkapallo|futis|jääkiekko|kiekko|hockey|koripallo|salibandy|stadion|bolt arena|jäähalli|kisahalli|olympiastadion/.test(text);
 }
 
 function attendanceEstimate(venue: string, league: string, weekday: number): number {
@@ -138,6 +144,7 @@ export async function fetchSportsEvents(): Promise<SportsEvent[]> {
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
   const todayEnd = new Date(now);
+  todayEnd.setDate(todayEnd.getDate() + 7);
   todayEnd.setHours(23, 59, 59, 999);
 
   const apiEvents: SportsEvent[] = [];
@@ -169,10 +176,12 @@ export async function fetchSportsEvents(): Promise<SportsEvent[]> {
         const venue = venueFromText(locText);
         if (!venue) continue;
 
-        const teams = parseTeams(eventName);
-        if (!teams) continue;
+        const teams = parseTeams(eventName) ?? { home: eventName, away: "Urheilutapahtuma" };
+        if (!parseTeams(eventName) && !isSportsLike(eventName, venue, ev.keywords)) continue;
 
-        const cap = VENUE_CAPACITY[venue] ?? 5000;
+        const cap = ev.maximum_attendee_capacity && ev.maximum_attendee_capacity > 0
+          ? ev.maximum_attendee_capacity
+          : VENUE_CAPACITY[venue] ?? 5000;
         const weekday = new Date(ev.start_time!).getDay();
         const league = ev.keywords?.[0]?.name?.fi || "Urheilu";
         const attendance = attendanceEstimate(venue, league, weekday);
