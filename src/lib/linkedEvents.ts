@@ -186,6 +186,13 @@ function fmtTime(iso?: string): string | undefined {
   return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
 }
 
+function todayAtSameLocalClock(iso: string, now: Date): string {
+  const src = new Date(iso);
+  const d = new Date(now);
+  d.setHours(src.getHours(), src.getMinutes(), 0, 0);
+  return d.toISOString();
+}
+
 function endsInMinutes(endIso?: string, startIso?: string): number {
   if (endIso) {
     return Math.max(0, Math.round((new Date(endIso).getTime() - Date.now()) / 60000));
@@ -264,7 +271,7 @@ export async function fetchLinkedEvents(): Promise<EventInfo[]> {
     if (isNoise(name, venue)) continue;
 
     const displayStartIso = startMs < todayStart.getTime() && endMs >= todayStart.getTime()
-      ? ev.end_time
+      ? todayAtSameLocalClock(ev.start_time, now)
       : ev.start_time;
 
     // Dedupe: sama nimi + alkamispaiva
