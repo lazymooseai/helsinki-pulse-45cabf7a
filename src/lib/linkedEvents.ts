@@ -251,17 +251,24 @@ export async function fetchLinkedEvents(): Promise<EventInfo[]> {
     if (!ev.start_time) continue;
     if (ev.super_event_type === "recurring") continue; // skipataan paataso, alalevelit tulevat omina
     const startMs = new Date(ev.start_time).getTime();
+    const endMs = ev.end_time ? new Date(ev.end_time).getTime() : startMs + 2.5 * 3600_000;
     if (startMs > end.getTime()) continue;
-    if (startMs < startMin.getTime()) continue;
 
     const name = pickName(ev.name).trim();
     if (!name) continue;
     const venue = venueName(ev.location).trim();
 
+    const isLongRunningImportant = endMs >= todayStart.getTime() && isImportantVenue(name, venue);
+    if (startMs < startMin.getTime() && !isLongRunningImportant) continue;
+
     if (isNoise(name, venue)) continue;
 
+    const displayStartIso = startMs < todayStart.getTime() && endMs >= todayStart.getTime()
+      ? ev.end_time
+      : ev.start_time;
+
     // Dedupe: sama nimi + alkamispaiva
-    const dayKey = new Date(ev.start_time).toISOString().slice(0, 10);
+    const dayKey = new Date(displayStartIso || ev.start_time).toISOString().slice(0, 10);
     const key = `${name.toLowerCase()}|${dayKey}|${venue.toLowerCase()}`;
     if (seenTitles.has(key)) continue;
     seenTitles.add(key);
@@ -280,8 +287,8 @@ export async function fetchLinkedEvents(): Promise<EventInfo[]> {
       soldOut: false,
       demandTag: tag,
       demandLevel: level,
-      startTime: fmtTime(ev.start_time),
-      startIso: ev.start_time,
+      startTime: fmtTime(displayStartIso || ev.start_time),
+      startIso: displayStartIso || ev.start_time,
       endTime: fmtTime(ev.end_time),
       capacity,
       availabilityNote: pickName(ev.short_description as { fi?: string }) || undefined,
