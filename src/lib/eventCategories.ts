@@ -494,6 +494,7 @@ export function politicalToTimelineItem(p: PoliticalEvent): TimelineItem {
   const tag = categoryLabel(p.category);
   const audienceTag = vipBadge(p.vipLevel);
 
+  const tolppaMatch = findTolppaForVenue(p.location || "");
   return {
     id: `political-${p.id}`,
     category: "politiikka",
@@ -507,9 +508,27 @@ export function politicalToTimelineItem(p: PoliticalEvent): TimelineItem {
     tag,
     audienceTag,
     endTime,
+    tolppa: tolppaMatch?.tolppa,
     url:
       p.sourceUrl ||
       `https://www.google.com/search?q=${encodeURIComponent(`${p.title} Helsinki`)}`,
     raw: { kind: "political", data: p },
   };
+}
+
+/**
+ * Päivittää TimelineItem-listan etäisyydet käyttäjän GPS-koordinaateista
+ * jokaiseen tolppaan. Käytetään yhden kerran komponentin sisällä.
+ */
+export function withTolppaDistances(
+  items: TimelineItem[],
+  userLat: number | null,
+  userLon: number | null,
+): TimelineItem[] {
+  if (userLat == null || userLon == null) return items;
+  return items.map((item) => {
+    if (!item.tolppa) return item;
+    const km = distanceKm(userLat, userLon, item.tolppa.lat, item.tolppa.lon);
+    return { ...item, tolppaKmFromUser: km };
+  });
 }
