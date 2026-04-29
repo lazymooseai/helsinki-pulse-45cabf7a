@@ -419,8 +419,15 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
                   </p>
                 </div>
               ) : (
-                visibleToday.map((item) => (
-                  <TimelineCard key={item.id} item={item} onClick={() => onSelect?.(item)} />
+              visibleToday.map((item) => (
+                  <TimelineCard
+                    key={item.id}
+                    item={item}
+                    onClick={() => {
+                      if (item.url) window.open(item.url, "_blank", "noopener,noreferrer");
+                      onSelect?.(item);
+                    }}
+                  />
                 ))
               )}
             </div>
@@ -432,7 +439,14 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
                   Myohemmin / tulevat ({upcomingItems.length})
                 </h3>
                 {visibleUpcoming.map((item) => (
-                  <TimelineCard key={item.id} item={item} onClick={() => onSelect?.(item)} />
+                  <TimelineCard
+                    key={item.id}
+                    item={item}
+                    onClick={() => {
+                      if (item.url) window.open(item.url, "_blank", "noopener,noreferrer");
+                      onSelect?.(item);
+                    }}
+                  />
                 ))}
               </div>
             )}
