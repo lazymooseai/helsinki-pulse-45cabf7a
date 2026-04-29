@@ -409,9 +409,11 @@ export function trainToTimelineItem(t: TrainDelay, stationName: string): Timelin
 
 export function sportsToTimelineItem(s: SportsEvent): TimelineItem {
   const startMs = timeToMs(s.startTime);
+  const audience = profileAudience(`${s.homeTeam} vs ${s.awayTeam}`, s.venue, s.capacity);
   const weight =
     (s.demandLevel === "red" ? 100 : s.demandLevel === "amber" ? 50 : 20) +
-    Math.min(50, s.expectedAttendance / 200);
+    Math.min(50, s.expectedAttendance / 200) +
+    Math.round((audience.taxiAffinity / 100) * 30);
 
   return {
     id: `sports-${s.id}`,
@@ -423,6 +425,8 @@ export function sportsToTimelineItem(s: SportsEvent): TimelineItem {
     level: s.demandLevel,
     weight,
     tag: s.demandTag,
+    audienceTag: audience.taxiTag,
+    audienceAge: audience.primaryAge,
     capacity: s.capacity,
     loadPct:
       s.capacity > 0 ? Math.round((s.expectedAttendance / s.capacity) * 100) : undefined,
