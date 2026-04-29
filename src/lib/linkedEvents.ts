@@ -196,42 +196,49 @@ function endsInMinutes(endIso?: string, startIso?: string): number {
   return 0;
 }
 
+async function fetchLinkedPage(params: URLSearchParams): Promise<LinkedEvent[]> {
+  const res = await fetch(`https://api.hel.fi/linkedevents/v1/event/?${params}`, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) {
+    console.warn("LinkedEvents haku epaonnistui:", res.status);
+    return [];
+  }
+  const json = (await res.json()) as LinkedResponse;
+  return json.data ?? [];
+}
+
 /**
  * Hae LinkedEvents-tapahtumat (kulttuuri + muut). Aikaikkuna: nyt - 7 pv eteen.
  * Suodattaa duplikaatit (super_event_type=recurring) ja "kohinan" (kirjastojumpat).
  */
 export async function fetchLinkedEvents(): Promise<EventInfo[]> {
   const now = new Date();
-  const startMin = new Date(now.getTime() - 30 * 60_000); // -30 min: jo alkaneet kayvat
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const startMin = new Date(now.getTime() - 30 * 60_000); // -30 min: jo alkaneet kayvat aikajanalla
   const end = new Date(now);
   end.setDate(end.getDate() + 7);
   end.setHours(23, 59, 59, 999);
 
-  // Yhdistetty haku: kulttuuri + viihde-keywordit. yso-koodit:
-  //   p360 = kulttuuritapahtumat, p1808 = konsertit, p13084 = teatteri,
-  //   p11185 = ooppera, p2625 = musiikki, p20421 = festivaalit
-  const params = new URLSearchParams({
-    start: startMin.toISOString(),
+  const baseParams = {
+    start: todayStart.toISOString(),
     end: end.toISOString(),
     include: "location,keywords",
-    page_size: "100",
+    page_size: "60",
     language: "fi",
     sort: "start_time",
-    keyword: "yso:p360,yso:p1808,yso:p13084,yso:p11185,yso:p20421",
-  });
+  };
 
   let raw: LinkedEvent[] = [];
   try {
-    const res = await fetch(`https://api.hel.fi/linkedevents/v1/event/?${params}`, {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!res.ok) {
-      console.warn("LinkedEvents culture haku epaonnistui:", res.status);
-      return [];
-    }
-    const json = (await res.json()) as LinkedResponse;
-    raw = json.data ?? [];
+    const requests = [
+      new URLSearchParams({ ...baseParams, keyword: KEYWORD_QUERY, page_size: "100" }),
+      ...TARGET_TEXT_QUERIES.map((text) => new URLSearchParams({ ...baseParams, text })),
+    ];
+    const pages = await Promise.all(requests.map(fetchLinkedPage));
+    raw = pages.flat();
   } catch (err) {
     console.warn("LinkedEvents poikkeus:", err);
     return [];
