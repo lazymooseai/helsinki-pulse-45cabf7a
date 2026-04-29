@@ -133,6 +133,60 @@ async function fetchWikidata(): Promise<PoliticalEv[]> {
   return events;
 }
 
+/**
+ * Eduskunnan vakioistuntoaikataulu (FI):
+ *   ti, ke, to klo 14:00 — kestää tyypillisesti ~3-4h
+ *   pe klo 13:00 — kyselytunti, ~1h
+ * Tuotetaan seuraavan 14 vrk istunnot (kesä-/joulutauot eivät tunnistettu —
+ * kuljettaja voi poistaa irrelevantit manuaalisesti).
+ */
+function eduskuntaSchedule(): PoliticalEv[] {
+  const events: PoliticalEv[] = [];
+  const now = new Date();
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + i);
+    d.setHours(0, 0, 0, 0);
+    const dow = d.getDay(); // 0=su
+    let hour = 0;
+    let durMin = 0;
+    let label = "";
+    if (dow === 2 || dow === 3 || dow === 4) {
+      hour = 14; durMin = 210; label = "Eduskunnan täysistunto";
+    } else if (dow === 5) {
+      hour = 13; durMin = 60; label = "Eduskunnan kyselytunti";
+    } else {
+      continue;
+    }
+    // Karkea kesätauko (heinäkuu) ja joulutauko (22.12-7.1)
+    const m = d.getMonth();
+    const day = d.getDate();
+    if (m === 6) continue; // heinäkuu pois
+    if ((m === 11 && day >= 22) || (m === 0 && day <= 7)) continue;
+
+    const start = new Date(d);
+    start.setHours(hour, 0, 0, 0);
+    if (start.getTime() < Date.now()) continue;
+    const end = new Date(start.getTime() + durMin * 60_000);
+    const ymd = start.toISOString().slice(0, 10);
+    events.push({
+      external_key: `eduskunta-${ymd}-${hour}`,
+      title: label,
+      description: "Vakioaikataulu — voi vaihdella valiokuntakäsittelyn mukaan.",
+      location: "Eduskuntatalo, Mannerheimintie 30",
+      category: "eduskunta",
+      vip_level: "kansanedustajat",
+      start_iso: start.toISOString(),
+      end_iso: undefined,
+      predicted_end_iso: end.toISOString(),
+      source_url: "https://www.eduskunta.fi/FI/lakiensaataminen/valiokunnat/Sivut/default.aspx",
+      confidence: 0.7,
+      reasoning: "Vakioaikataulu (ti/ke/to 14:00, pe 13:00)",
+    });
+  }
+  return events;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
