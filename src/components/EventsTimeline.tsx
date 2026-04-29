@@ -120,6 +120,10 @@ interface TimelineCardProps {
 const TimelineCard = ({ item, onClick }: TimelineCardProps) => {
   const isPast = item.startMs < -5 * 60 * 1000;
   const dateBadge = formatDateBadge(item.startIso);
+  const timeLabel =
+    item.endTime && item.time && item.endTime !== item.time
+      ? `${item.time}–${item.endTime}`
+      : item.time || "—";
   return (
     <button
       onClick={onClick}
@@ -180,8 +184,12 @@ const TimelineCard = ({ item, onClick }: TimelineCardProps) => {
         </div>
       </div>
       <div className="flex flex-col items-end shrink-0">
-        <span className={`text-2xl font-mono font-black ${LEVEL_TIME_COLOR[item.level]}`}>
-          {item.time || "—"}
+        <span
+          className={`font-mono font-black ${LEVEL_TIME_COLOR[item.level]} ${
+            timeLabel.includes("–") ? "text-base leading-tight" : "text-2xl"
+          }`}
+        >
+          {timeLabel}
         </span>
         <span className="text-[10px] font-bold text-muted-foreground/70 mt-0.5">
           {formatRelative(item.startMs)}
