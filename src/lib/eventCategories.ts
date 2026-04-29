@@ -20,6 +20,8 @@ import type {
   SportsEvent,
 } from "./types";
 import { profileAudience } from "./audienceProfile";
+import type { PoliticalEvent } from "./politicalEvents";
+import { vipBadge, categoryLabel } from "./politicalEvents";
 
 export type EventCategory = "asemat" | "kulttuuri" | "urheilu" | "politiikka" | "muut";
 
@@ -54,7 +56,7 @@ export interface TimelineItem {
   /** Ulkoinen URL johon kortin klikkaus johtaa (uusi valilehti) */
   url?: string;
   /** Alkuperainen objekti, jotta detail-paneeli toimii */
-  raw: { kind: "flight" | "train" | "ship" | "event" | "sports"; data: unknown };
+  raw: { kind: "flight" | "train" | "ship" | "event" | "sports" | "political"; data: unknown };
 }
 
 // ---------------------------------------------------------------------------
