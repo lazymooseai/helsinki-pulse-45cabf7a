@@ -19,6 +19,7 @@ import type {
   TrainDelay,
   SportsEvent,
 } from "./types";
+import { profileAudience } from "./audienceProfile";
 
 export type EventCategory = "asemat" | "kulttuuri" | "urheilu" | "muut";
 
@@ -40,6 +41,10 @@ export interface TimelineItem {
   weight: number;
   /** Vapaaehtoinen paatag, esim. "LOPPUUNMYYTY" */
   tag?: string;
+  /** Toinen tag — taksi-/asiakassegmentin kuvaus (esim. "TAKSIYLEISO") */
+  audienceTag?: string;
+  /** Kohdeasiakkaiden ika-arvio "55-85" */
+  audienceAge?: string;
   /** Kapasiteetti tai matkustajamaara, jos tiedossa */
   capacity?: number;
   /** Lipunmyyntiaste 0..100 (jos tiedossa), naytetaan kortilla */
@@ -295,11 +300,15 @@ export function eventToTimelineItem(e: EventInfo): TimelineItem {
     ? new Date(e.startIso).getTime() - Date.now()
     : timeToMs(time);
   const level = e.demandLevel || (e.soldOut ? "red" : "amber");
+  const audience = profileAudience(e.name, e.venue, e.capacity, e.startIso);
+  // Affinity bonus weightiin: 0..50 lisaa
+  const affinityBonus = Math.round((audience.taxiAffinity / 100) * 50);
   // Painotus: red = 100, amber = 50, capacity bonus
   const weight =
     (level === "red" ? 100 : level === "amber" ? 50 : 10) +
     (e.capacity ? Math.min(50, e.capacity / 100) : 0) +
-    (e.soldOut ? 30 : 0);
+    (e.soldOut ? 30 : 0) +
+    affinityBonus;
 
   const loadPct =
     e.soldOut
@@ -321,6 +330,8 @@ export function eventToTimelineItem(e: EventInfo): TimelineItem {
     level,
     weight,
     tag: e.demandTag,
+    audienceTag: audience.taxiTag,
+    audienceAge: audience.primaryAge,
     capacity: e.capacity,
     loadPct,
     endTime: e.endTime,
