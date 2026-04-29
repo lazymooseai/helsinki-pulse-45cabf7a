@@ -33,12 +33,12 @@ const DashboardHeader = () => {
 
   return (
     <header className="px-4 py-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="font-mono text-5xl font-black tracking-wider text-foreground">
-          {hours}
+      <div className="flex items-center justify-between gap-3">
+        <div className="font-mono text-5xl font-black tracking-wider text-foreground tabular-nums shrink-0">
+          <span className="inline-block">{hours}</span>
           <span className="animate-flash-icon text-primary">:</span>
-          {minutes}
-          <span className="text-muted-foreground text-3xl ml-1">{seconds}</span>
+          <span className="inline-block">{minutes}</span>
+          <span className="text-muted-foreground text-3xl ml-1 inline-block w-[1.6em] text-left tabular-nums">{seconds}</span>
         </div>
 
         <div className="flex items-center gap-1.5">
