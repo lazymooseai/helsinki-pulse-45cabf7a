@@ -197,14 +197,23 @@ Deno.serve(async (req) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // 1) Hae uusi data ilmaisista lähteistä (Wikidata + Eduskunnan kalenteri)
+    // 1) Hae uusi data ilmaisista lähteistä (Wikidata)
+    // HUOM: Eduskunnan vakiokalenteri poistettu käytöstä — eduskunta.fi uudistui
+    // ja vanhat URLit antavat 404, ja vakioaikataulut eivät pidä paikkaansa
+    // (kesätauot, valiokuntakäsittelyt yms). Käyttäjä voi lisätä täysistunnot
+    // käsin Hallinta-välilehdeltä jos tarpeen.
     const wd = await fetchWikidata().catch((e) => {
       console.warn("Wikidata fail:", e instanceof Error ? e.message : e);
       return [] as PoliticalEv[];
     });
-    const ed = eduskuntaSchedule();
-    const events = [...wd, ...ed];
-    console.log(`fetch-political-news: wikidata=${wd.length} eduskunta=${ed.length}`);
+    const events = [...wd];
+    console.log(`fetch-political-news: wikidata=${wd.length}`);
+
+    // Siivoa vanhat eduskunta-cal -rivit kannasta (lähteen poiston jälkeen)
+    await supabase
+      .from("political_events")
+      .delete()
+      .eq("source", "eduskunta-cal");
 
     let inserted = 0;
     let updated = 0;
