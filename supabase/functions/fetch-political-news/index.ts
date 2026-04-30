@@ -6,6 +6,11 @@
 //   1) Wikidata SPARQL — valtiovierailut, huippukokoukset, kansainväliset
 //      konferenssit jotka pidetään Helsingissä lähitulevaisuudessa.
 //   2) (Best-effort) Eduskunnan tulevat täysistunnot — staattinen viikkokalenteri.
+//   3) "Some-agentti": Lovable AI Gateway (Gemini) skannaa lehdistön /
+//      sosiaalisen median otsikot Helsingin joukkotapahtumista,
+//      järjestyshäiriöistä ja viranomaistoimista (esim. vappuaaton
+//      Kaivopuiston tyhjennys). Tallennetaan kategoriaan
+//      "joukkotapahtuma" tai "jarjestyshairio".
 //
 // Tapahtumat upsertataan political_events-tauluun. Jos rivissä on aiempi
 // predicted_end_time ja saadaan uusi end_iso, lasketaan end_error_min →
@@ -191,6 +196,132 @@ function eduskuntaSchedule(): PoliticalEv[] {
   return events;
 }
 
+// ---------------------------------------------------------------------------
+// Some-agentti — Lovable AI Gateway (Gemini)
+//
+// Pyytää mallia listaamaan Helsingin alueen "joukkotapahtumat" ja
+// "järjestyshäiriöt" lähipäiviltä lehdistön ja some-otsikoiden perusteella:
+// esim. vappuaaton Kaivopuiston kokoontumiset ja niiden tyhjennys,
+// mielenosoitukset, suuret katujuhlat, festivaalit jotka tuovat satoja
+// tuhansia ihmisiä keskustaan.
+//
+// Mallin tulee palauttaa PUHDAS JSON ilman koodiblokkia.
+// ---------------------------------------------------------------------------
+
+interface SocialAiItem {
+  title: string;
+  description?: string;
+  location?: string;
+  start_iso: string;
+  end_iso?: string;
+  category: "joukkotapahtuma" | "jarjestyshairio" | "mielenosoitus" | "festivaali";
+  source_url?: string;
+  confidence?: number;
+  reasoning?: string;
+}
+
+async function fetchSocialAgent(): Promise<PoliticalEv[]> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) {
+    console.warn("Some-agentti: LOVABLE_API_KEY puuttuu — ohitetaan");
+    return [];
+  }
+
+  const today = new Date();
+  const horizon = new Date(today.getTime() + 5 * 24 * 3600_000);
+  const ymd = (d: Date) => d.toISOString().slice(0, 10);
+
+  const prompt = `Olet helsinkiläisen taksinkuljettajan tilannepäivystäjä.
+Listaa Helsingin alueen MERKITTÄVÄT joukkotapahtumat, mielenosoitukset,
+järjestyshäiriöt ja viranomaistoimet aikavälillä ${ymd(today)} – ${ymd(horizon)}.
+Tarkoitus: kuljettaja osaa välttää tukkeutuneita alueita ja siirtyä
+kysynnän perään kun ihmismassat purkautuvat.
+
+Esimerkkejä:
+- Vappuaaton kokoontumiset Kaivopuistossa, Ullanlinnanmäellä, Kauppatorilla
+  ja niiden poliisin tyhjennykset
+- Mielenosoitukset Eduskuntatalolla, Senaatintorilla, Narinkkatorilla
+- Suuret katujuhlat, paraatit, kulkueet
+- Festivaalit jotka tuovat kymmeniä tuhansia keskustaan
+- Suurmielenosoitukset jotka sulkevat keskustan katuja
+
+Jätä pois:
+- Tavanomaiset konsertit, teatteriesitykset, urheilukisat (ne ovat jo muissa
+  lähteissä)
+- Pienet (alle 500 hlö) tapahtumat
+
+Palauta PUHDAS JSON-taulukko (ei koodiblokkia, ei selitystä). Jos et löydä
+mitään, palauta tyhjä taulukko []. Esimerkki:
+[{"title":"Vappuaaton kokoontuminen Kaivopuistossa","description":"Perinteinen ylioppilaiden vappujuhla; poliisi voi tyhjentää alueen myöhään illalla","location":"Kaivopuisto, Helsinki","start_iso":"2026-04-30T18:00:00+03:00","end_iso":"2026-05-01T03:00:00+03:00","category":"joukkotapahtuma","source_url":"https://yle.fi/...","confidence":0.85,"reasoning":"Vuosittainen perinne, lehdistö raportoi joka vuosi"}]
+
+Käytä ISO 8601 -aikoja Helsinki-aikavyöhykkeessä (+03:00 kesä-, +02:00 talvi).
+Älä keksi tapahtumia. Jos epävarmuus on suuri, jätä pois.`;
+
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: "Vastaa aina puhtaalla JSON-taulukolla ilman koodiblokkia." },
+        { role: "user", content: prompt },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    console.warn("Some-agentti AI", res.status, await res.text().catch(() => ""));
+    return [];
+  }
+
+  const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
+  const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+  // Riisu mahdollinen koodiblokki
+  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+
+  let items: SocialAiItem[] = [];
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (Array.isArray(parsed)) items = parsed as SocialAiItem[];
+  } catch (e) {
+    console.warn("Some-agentti JSON parse fail:", e instanceof Error ? e.message : e, "raw:", raw.slice(0, 200));
+    return [];
+  }
+
+  const events: PoliticalEv[] = [];
+  for (const it of items) {
+    if (!it.title || !it.start_iso) continue;
+    const startMs = Date.parse(it.start_iso);
+    if (!Number.isFinite(startMs)) continue;
+    if (startMs < Date.now() - 6 * 3600_000) continue; // ei mennyttä
+    if (startMs > Date.now() + 7 * 24 * 3600_000) continue;
+
+    // Vakaa avain: kategoria + slug + päivä
+    const slug = it.title.toLowerCase().replace(/[^a-zåäö0-9]+/g, "-").slice(0, 40);
+    const day = it.start_iso.slice(0, 10);
+    const cat = it.category || "joukkotapahtuma";
+
+    events.push({
+      external_key: `social-${cat}-${slug}-${day}`,
+      title: it.title,
+      description: it.description,
+      location: it.location || "Helsinki",
+      category: cat,
+      vip_level: cat === "jarjestyshairio" ? "viranomainen" : undefined,
+      start_iso: it.start_iso,
+      end_iso: it.end_iso,
+      predicted_end_iso: it.end_iso || new Date(startMs + 4 * 3600_000).toISOString(),
+      source_url: it.source_url,
+      confidence: typeof it.confidence === "number" ? it.confidence : 0.6,
+      reasoning: `Some-agentti (Gemini): ${it.reasoning ?? "lehdistöhaku"}`,
+    });
+  }
+  return events;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -210,8 +341,14 @@ Deno.serve(async (req) => {
       console.warn("Wikidata fail:", e instanceof Error ? e.message : e);
       return [] as PoliticalEv[];
     });
-    const events = [...wd];
-    console.log(`fetch-political-news: wikidata=${wd.length}`);
+    // 2) Some-agentti: skannaa lehdistö joukkotapahtumista ja
+    //    järjestyshäiriöistä (ilmainen Gemini Lovable AI Gatewayn kautta).
+    const socialEvents = await fetchSocialAgent().catch((e) => {
+      console.warn("Social agent fail:", e instanceof Error ? e.message : e);
+      return [] as PoliticalEv[];
+    });
+    const events = [...wd, ...socialEvents];
+    console.log(`fetch-political-news: wikidata=${wd.length} social=${socialEvents.length}`);
 
     // Siivoa vanhat eduskunta-cal -rivit kannasta (lähteen poiston jälkeen)
     await supabase
@@ -241,7 +378,11 @@ Deno.serve(async (req) => {
         end_time: ev.end_iso ?? null,
         predicted_end_time: ev.predicted_end_iso ?? ev.end_iso ?? null,
         source_url: ev.source_url ?? null,
-        source: ev.external_key.startsWith("eduskunta-") ? "eduskunta-cal" : "wikidata",
+        source: ev.external_key.startsWith("eduskunta-")
+          ? "eduskunta-cal"
+          : ev.external_key.startsWith("social-")
+          ? "social-agent"
+          : "wikidata",
         confidence: ev.confidence ?? null,
         reasoning: ev.reasoning ?? null,
         fetched_at: now,

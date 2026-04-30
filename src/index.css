@@ -24,7 +24,10 @@
     --secondary-foreground: 210 40% 98%;
 
     --muted: 217 33% 18%;
-    --muted-foreground: 215 20% 55%;
+    /* Aiempi 215 20% 55% oli liian himmeä ajossa luettavaksi.
+       Vaihdettu vaaleampaan, sinisävyiseen turkoosiin → erottuu
+       tummaa pohjaa vasten mutta ei kilpaile primaryn kanssa. */
+    --muted-foreground: 200 45% 78%;
 
     --accent: 45 93% 47%;
     --accent-foreground: 222 47% 8%;

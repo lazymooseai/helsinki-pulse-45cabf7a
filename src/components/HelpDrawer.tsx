@@ -64,16 +64,29 @@ const HelpDrawer = () => {
           <Section icon={<TrendingUp className="h-5 w-5 text-primary" />} title="Säpinä — tapahtumat & kysyntä">
             Aikajana 4 kategoriassa: <strong>Asemat</strong>,
             <strong> Kulttuuri</strong>, <strong>Urheilu</strong>, <strong>Muut</strong>.
-            Lähteet: oma DB (manuaaliset lisäykset), LinkedEvents (Helsingin
-            tapahtumakanta), Tavastia/Klubi-keikat ja sportskannaus.
+            Lähteet: oma tietokanta (manuaaliset lisäykset), LinkedEvents
+            (Helsingin tapahtumakanta), Tavastia/Klubi-keikat ja sportskannaus.
             <Bullet>
-              <Ticket className="inline h-4 w-4 text-accent mr-1" />
-              <strong>TAKSIYLEISÖ / BUSINESS</strong> -tagit nostavat tapahtuman
-              kärkeen — yleisön ikäjakauma 30–100 ennustetaan venuen ja artistin
-              perusteella. Esim. Malmitalo + Topmost = vahva taksiboost.
+              <strong>Näet myös huomisen tapahtumat.</strong> Osa korteista
+              näyttää tämän päivän iltaohjelman lisäksi seuraavan vuorokauden
+              isot tapahtumat (esim. aamuottelut, aamulennot, vuorokauden yli
+              menevät keikat). Päivämäärä lukee kortissa, jos se ei ole tänään.
             </Bullet>
             <Bullet>
-              Korttia painamalla aukeaa virallinen lippu-/info-sivu.
+              <Ticket className="inline h-4 w-4 text-accent mr-1" />
+              <strong>TAKSIYLEISÖ / BUSINESS</strong> -tagit nostavat
+              tapahtuman kärkeen. Sovellus arvioi yleisön iän venuen ja
+              artistin perusteella — esim. Malmitalo + Topmost = vahva
+              taksiboost.
+            </Bullet>
+            <Bullet>
+              Korttia painamalla aukeaa virallinen lippu- tai infosivu
+              uudessa välilehdessä.
+            </Bullet>
+            <Bullet>
+              Välilehti <strong>Politiikka</strong> näyttää NATO-, valtio-
+              vierailu- ja eduskuntatapahtumat sekä lehdistön nostamat
+              joukkotapahtumat (esim. vappuaaton Kaivopuisto).
             </Bullet>
           </Section>
 
@@ -106,10 +119,24 @@ const HelpDrawer = () => {
           </Section>
 
           <Section icon={<HelpCircle className="h-5 w-5 text-muted-foreground" />} title="Päivittäminen">
-            Data päivittyy automaattisesti taustalla (junat 2 min, laivat ja
-            tapahtumat 5 min). Yläkulman <strong>↻ Päivitä</strong> -nappi pakottaa
-            haut heti. <strong>Lokit</strong>-nappi näyttää viimeisimmät virheet
-            jos jokin syöte ei toimi.
+            Data päivittyy automaattisesti taustalla: junat 2 min välein,
+            laivat ja tapahtumat 5 min välein, poliittiset uutiset tunnin välein.
+            Yläkulman <strong>↻ Päivitä</strong> -nappi pakottaa haut heti.
+            <Bullet>
+              <strong>Vihreä piste</strong> kortissa = data on tuoretta (LIVE).
+              Harmaa <strong>AIKATAULU</strong>-piste = vanhempi tai aikataulu-
+              pohjainen tieto.
+            </Bullet>
+            <Bullet>
+              <strong>Lokit</strong>-nappi näyttää viimeisimmät virheet jos
+              jokin syöte ei toimi. Lokit voi tallentaa <em>"Tallenna loki"</em>
+              -napilla tekstitiedostona.
+            </Bullet>
+            <Bullet>
+              Jos tapahtuma on väärässä paikassa tai puuttuu, korjaa tolppa
+              kynäikonista tai lisää tapahtuma <strong>Hallinta</strong>-
+              välilehdeltä.
+            </Bullet>
           </Section>
         </div>
       </SheetContent>
