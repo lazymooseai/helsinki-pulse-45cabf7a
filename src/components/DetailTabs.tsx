@@ -52,10 +52,10 @@ const VENUE_LINKS: Record<string, string> = {
   hkt: "https://hkt.fi/kalenteri/",
   kansallisteatteri: "https://kansallisteatteri.fi/ohjelmisto/",
   tavastia: "https://www.tavastiaklubi.fi/",
-  "tanssin talo": "https://tanssintalo.fi/ohjelmisto/",
-  savoy: "https://www.savoyteatteri.fi/ohjelma/",
-  kulttuuritalo: "https://kulttuuritalohelsinki.fi/",
-  finlandia: "https://finlandiatalo.fi/tapahtumat/",
+  "tanssin talo": "https://www.tanssintalo.fi/ohjelma",
+  savoy: "https://www.savoyteatteri.fi/",
+  kulttuuritalo: "https://kulttuuritalo.fi/",
+  finlandia: "https://www.finlandiatalo.fi/jarjesta-tapahtuma/tulevat-tapahtumat/",
 };
 
 function venueLink(venue: string): string {
