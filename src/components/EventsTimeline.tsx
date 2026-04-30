@@ -23,6 +23,7 @@ import {
   ExternalLink,
   Landmark,
   MapPin,
+  Pencil,
 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { TRAIN_STATIONS } from "@/lib/fintraffic";
@@ -41,7 +42,13 @@ import {
   withTolppaDistances,
 } from "@/lib/eventCategories";
 import { useGeolocation } from "@/hooks/useGeolocation";
-import { formatTolppaLabel, detectDriverArea, driverAreaLabel } from "@/lib/tolppaLocations";
+import { formatTolppaLabel, detectDriverArea, driverAreaLabel, TOLPAT, distanceKm } from "@/lib/tolppaLocations";
+import { getManualTolppa, setManualTolppa } from "@/lib/manualTolppaOverrides";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const CATEGORY_ICONS: Record<EventCategory, React.ReactNode> = {
   asemat: <Plane className="h-4 w-4" />,
