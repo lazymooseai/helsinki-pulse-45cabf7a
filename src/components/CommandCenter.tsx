@@ -158,7 +158,13 @@ const CommandCenter = () => {
       </div>
 
       <h1
-        className={`text-4xl font-black leading-tight mb-2 ${
+        className={`font-black leading-[1.05] mb-2 break-words hyphens-auto ${
+          zone.length > 14
+            ? "text-2xl sm:text-3xl"
+            : zone.length > 10
+            ? "text-3xl sm:text-4xl"
+            : "text-4xl sm:text-5xl"
+        } ${
           isJackpot ? "text-destructive text-glow-red" : "text-foreground text-glow-green"
         }`}
       >
