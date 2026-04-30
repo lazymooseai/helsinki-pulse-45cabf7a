@@ -13,6 +13,7 @@
 
 import { DashboardState, JackpotAlert } from "./types";
 import { getWeatherMultiplier, getWeatherDescription } from "./weather";
+import { isLowTaxiDemandEvent } from "./eventDemandFilters";
 
 // ---------------------------------------------------------------------------
 // Apufunktiot
@@ -149,6 +150,7 @@ export function calculateOpportunityScore(state: DashboardState): JackpotAlert[]
   // Saanto 5: Tapahtumat red-tasolla
   // ------------------------------------------------------------------
   for (const event of state.events) {
+    if (isLowTaxiDemandEvent(event.name, event.venue)) continue;
     if (event.demandLevel !== "red") continue;
     if (event.endsIn > 120) continue; // Ei viela alkamassa
 

@@ -12,6 +12,7 @@
  */
 
 import type { SportsEvent } from "./types";
+import { isLowTaxiDemandEvent } from "./eventDemandFilters";
 
 // ---------------------------------------------------------------------------
 // Areenoiden kapasiteetit
@@ -187,6 +188,7 @@ export async function fetchSportsEvents(): Promise<SportsEvent[]> {
         const locText = `${getName(ev.location?.name)} ${getName(ev.location?.street_address)} ${eventName}`;
         const venue = venueFromText(locText);
         if (!venue) continue;
+        if (isLowTaxiDemandEvent(eventName, venue)) continue;
 
         const teams = parseTeams(eventName) ?? { home: eventName, away: "Urheilutapahtuma" };
         if (!parseTeams(eventName) && !isSportsLike(eventName, venue, ev.keywords)) continue;

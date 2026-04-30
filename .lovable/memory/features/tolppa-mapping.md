@@ -31,9 +31,10 @@ HUOM: Olympiastadion ja HKT (Kaupunginteatteri) on käyttäjän pyynnöstä
 mapattu tolppaan **52 Ooppera/Itä-Töölö**, vaikka virallinen lista ei suoraan
 vastaa tätä — käyttäjällä on alue­tuntemus.
 Suomalainen Klubi → **96 Simonkenttä** (ei Kasarmikatu).
-Urheilumuseo "Tahdon tarina" suodatetaan pois LinkedEventsista (pieni
-näyttely, ei taksikysyntää) — `linkedEvents.ts` NOISE_PATTERNS sisältää
-/tahdon tarina/, /urheilumuseo/, /näyttely/.
+Urheilumuseo "Tahdon tarina" / "Tahdon tila" suodatetaan pois kaikista
+tapahtuma- ja suosituslähteistä (pieni näyttely, ei taksikysyntää) — käytä
+keskitettyä `isLowTaxiDemandEvent`-suodatinta ennen DB-, LinkedEvents-,
+urheilu- ja suositusnäyttöä.
 Eduskunnan täysistunnot suodatetaan kokonaan pois Wikidata-syötteestä ja
 kannasta — vanhentuneita/vääriä aikatauluja. Käyttäjä lisää tarvittaessa
 manuaalisesti Hallinta-välilehdeltä.

@@ -25,6 +25,18 @@ const MAX = 100;
 const buffer: LogEntry[] = [];
 let installed = false;
 
+function shouldIgnore(args: unknown[]): boolean {
+  const text = args
+    .map((a) => (typeof a === "string" ? a : a instanceof Error ? a.message : String(a)))
+    .join(" ");
+  return (
+    text.includes("React Router Future Flag Warning") ||
+    text.includes("Unknown message type: RESET_BLANK_CHECK") ||
+    text.includes("Function components cannot be given refs") ||
+    text.includes("Download the React DevTools")
+  );
+}
+
 function notify() {
   try {
     window.dispatchEvent(new CustomEvent("errorlog:update"));
@@ -34,6 +46,7 @@ function notify() {
 }
 
 function push(level: LogLevel, args: unknown[], source?: string) {
+  if (shouldIgnore(args)) return;
   const message = args
     .map((a) => {
       if (typeof a === "string") return a;

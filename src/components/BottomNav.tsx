@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { Radar, TrainFront, TrendingUp, Settings } from "lucide-react";
 
 export type TabKey = "tutka" | "liikenne" | "sapina" | "hallinta";
@@ -14,9 +15,10 @@ interface Props {
   onChange: (k: TabKey) => void;
 }
 
-const BottomNav = ({ active, onChange }: Props) => {
+const BottomNav = forwardRef<HTMLElement, Props>(({ active, onChange }, ref) => {
   return (
     <nav
+      ref={ref}
       className="fixed bottom-0 inset-x-0 z-40 bg-card/95 backdrop-blur border-t-2 border-border"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       aria-label="Päänavigointi"
@@ -51,6 +53,8 @@ const BottomNav = ({ active, onChange }: Props) => {
       </ul>
     </nav>
   );
-};
+});
+
+BottomNav.displayName = "BottomNav";
 
 export default BottomNav;

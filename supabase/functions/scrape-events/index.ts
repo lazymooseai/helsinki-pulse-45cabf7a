@@ -274,6 +274,11 @@ function classifyDemand(loadFactor: number | null, soldOut: boolean): { level: '
   return { level: 'green', tag: 'NORMAALI' };
 }
 
+function isLowTaxiDemandEvent(name?: string, venue?: string): boolean {
+  const text = `${name ?? ''} ${venue ?? ''}`;
+  return /tahdon\s+(tarina|tila)|tahdontarina|urheilumuseo/i.test(text);
+}
+
 /** Skrapaa yhden aggregaattorisivun ja palauttaa parsedut tapahtumat. */
 async function scrapeAggregator(url: string, firecrawlKey: string, lovableKey: string): Promise<ParsedAggregatorEvent[]> {
   const md = await firecrawlScrape(url, firecrawlKey);
@@ -359,6 +364,7 @@ Deno.serve(async (req) => {
   let upsertCount = 0;
   const upsertErrors: string[] = [];
   for (const ev of combined.values()) {
+    if (isLowTaxiDemandEvent(ev.name, ev.venue)) continue;
     const venueName = ev.venue?.trim() || 'Tuntematon paikka';
     const capacity = pickCapacityForVenue(venueName);
     const tickets_sold = ev.load_factor != null && capacity ? Math.round(capacity * ev.load_factor) : null;
@@ -394,6 +400,7 @@ Deno.serve(async (req) => {
   // 5) Siivoa vanhat skrapatut tapahtumat (eilistä vanhemmat)
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   await supabase.from('events').delete().eq('source', 'scraper').lt('start_time', cutoff);
+  await supabase.from('events').delete().eq('source', 'scraper').or('name.ilike.%Tahdon tarina%,name.ilike.%Tahdon tila%,name.ilike.%Urheilumuseo%,venue.ilike.%Urheilumuseo%');
 
   return new Response(JSON.stringify({
     ok: true,
