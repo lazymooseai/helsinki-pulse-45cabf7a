@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { ScrollText, Trash2, AlertCircle, AlertTriangle, Info } from "lucide-react";
+import { ScrollText, Trash2, AlertCircle, AlertTriangle, Info, Download } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -47,6 +47,23 @@ const ErrorLogDrawer = () => {
   const errorCount = entries.filter((e) => e.level === "error").length;
   const hasNew = entries.length > seenCount && errorCount > 0;
 
+  const saveLog = () => {
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const lines = entries.map((e) => {
+      const level = e.level.toUpperCase();
+      const time = new Date(e.ts).toISOString();
+      const source = e.source ? ` [${e.source}]` : "";
+      return `${time} ${level}${source}: ${e.message}${e.detail ? `\n${e.detail}` : ""}`;
+    });
+    const blob = new Blob([lines.join("\n\n") || "Ei lokimerkintöjä."], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `virheloki-${stamp}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
@@ -80,12 +97,20 @@ const ErrorLogDrawer = () => {
         </SheetHeader>
 
         {entries.length > 0 && (
-          <button
-            onClick={() => clearErrorLog()}
-            className="mt-4 flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-destructive"
-          >
-            <Trash2 className="h-4 w-4" /> Tyhjennä loki
-          </button>
+          <div className="mt-4 flex items-center gap-2">
+            <button
+              onClick={saveLog}
+              className="flex items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-sm font-bold text-foreground hover:text-primary"
+            >
+              <Download className="h-4 w-4" /> Tallenna loki
+            </button>
+            <button
+              onClick={() => clearErrorLog()}
+              className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-bold text-muted-foreground hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4" /> Tyhjennä
+            </button>
+          </div>
         )}
 
         <div className="mt-4 space-y-2 pb-12">
