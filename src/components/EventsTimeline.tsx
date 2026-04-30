@@ -378,6 +378,14 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
   const stationName =
     TRAIN_STATIONS.find((s) => s.code === trainStation)?.name || "Helsinki";
 
+  // Triggeri uudelleenrenderille kun käyttäjä muuttaa manuaalista tolppa-overridea
+  const [manualVer, setManualVer] = useState(0);
+  useEffect(() => {
+    const handler = () => setManualVer((v) => v + 1);
+    window.addEventListener("manual-tolppa-changed", handler);
+    return () => window.removeEventListener("manual-tolppa-changed", handler);
+  }, []);
+
   // Yhdista kaikki lahteet TimelineItemeiksi
   const allItems: TimelineItem[] = useMemo(() => {
     const items: TimelineItem[] = [];
@@ -388,7 +396,14 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
     upcomingEvents.forEach((e) => items.push(eventToTimelineItem(e)));
     state.sportsEvents.forEach((s) => items.push(sportsToTimelineItem(s)));
     politicalEvents.forEach((p) => items.push(politicalToTimelineItem(p)));
-    return withTolppaDistances(items, userLat, userLon);
+    // Sovella käyttäjän manuaaliset tolppa-overridet ennen etäisyyslaskua
+    const overridden = items.map((it) => {
+      const m = getManualTolppa(it.id);
+      if (m === undefined) return it; // ei overridea
+      if (m === null) return { ...it, tolppa: undefined }; // käyttäjä poisti
+      return { ...it, tolppa: m };
+    });
+    return withTolppaDistances(overridden, userLat, userLon);
   }, [
     state.flights,
     state.trainDelays,
@@ -400,6 +415,7 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
     stationName,
     userLat,
     userLon,
+    manualVer,
   ]);
 
   // Suodata aika-ikkunan mukaan + ryhmita kategorioihin
