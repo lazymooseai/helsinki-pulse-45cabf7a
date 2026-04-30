@@ -87,22 +87,22 @@ const HARD_LIMIT_PER_TAB = 5;
  * oikean tolpan tapahtumalle. Tallennus localStorageen.
  */
 const TolppaEditor = ({ item }: { item: TimelineItem }) => {
-  const { coords } = useGeolocation();
+  const geo = useGeolocation();
   const [open, setOpen] = useState(false);
-  // Lähimmät 12 tolppaa kuljettajan sijainnista, muuten aakkosellisesti.
+  // Lähimmät 16 tolppaa kuljettajan sijainnista, muuten aakkosellisesti.
   const options = useMemo(() => {
     const list = [...TOLPAT];
-    if (coords) {
+    if (geo.lat != null && geo.lon != null) {
       list.sort(
         (a, b) =>
-          distanceKm(coords.latitude, coords.longitude, a.lat, a.lon) -
-          distanceKm(coords.latitude, coords.longitude, b.lat, b.lon),
+          distanceKm(geo.lat, geo.lon, a.lat, a.lon) -
+          distanceKm(geo.lat, geo.lon, b.lat, b.lon),
       );
       return list.slice(0, 16);
     }
     list.sort((a, b) => a.name.localeCompare(b.name, "fi"));
     return list;
-  }, [coords]);
+  }, [geo.lat, geo.lon]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
