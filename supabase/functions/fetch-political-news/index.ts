@@ -6,6 +6,11 @@
 //   1) Wikidata SPARQL — valtiovierailut, huippukokoukset, kansainväliset
 //      konferenssit jotka pidetään Helsingissä lähitulevaisuudessa.
 //   2) (Best-effort) Eduskunnan tulevat täysistunnot — staattinen viikkokalenteri.
+//   3) "Some-agentti": Lovable AI Gateway (Gemini) skannaa lehdistön /
+//      sosiaalisen median otsikot Helsingin joukkotapahtumista,
+//      järjestyshäiriöistä ja viranomaistoimista (esim. vappuaaton
+//      Kaivopuiston tyhjennys). Tallennetaan kategoriaan
+//      "joukkotapahtuma" tai "jarjestyshairio".
 //
 // Tapahtumat upsertataan political_events-tauluun. Jos rivissä on aiempi
 // predicted_end_time ja saadaan uusi end_iso, lasketaan end_error_min →
