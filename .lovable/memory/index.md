@@ -25,3 +25,4 @@
 - [Trip History](mem://features/trip-history) — taxi_trips & trip_patterns
 - [Real-Time Refresh](mem://features/real-time-refresh) — Per-source refresh intervals and visible countdown
 - [Flights & Sports](mem://features/flights-sports) — HEL-Vantaa flight arrivals + sports events
+- [Feature Feedback](mem://features/feature-feedback) — Per-section suggestion buttons + floating lightbulb writing to feature_feedback table
