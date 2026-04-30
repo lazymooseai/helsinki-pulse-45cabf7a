@@ -2,6 +2,7 @@ import { Navigation, Plane, TrainFront, Ship, Trophy, CloudRain, ExternalLink } 
 import { useDashboard } from "@/context/DashboardContext";
 import { JackpotAlert } from "@/lib/types";
 import { openExternal } from "@/lib/openExternal";
+import { isLowTaxiDemandEvent } from "@/lib/eventDemandFilters";
 
 /* ── Map alert type + zone to a deep link ── */
 const ZONE_LINKS: Record<string, string> = {
@@ -75,7 +76,7 @@ const CommandCenter = () => {
       };
     }
     // 2. Urheilutapahtuma alkamassa / käynnissä
-    const sport = state.sportsEvents[0];
+    const sport = state.sportsEvents.find((s) => !isLowTaxiDemandEvent(`${s.homeTeam} ${s.awayTeam}`, s.venue));
     if (sport) {
       const endClock = sport.endsIn > 0 ? minutesToClock(sport.endsIn) : "loppunut";
       return {
@@ -85,7 +86,8 @@ const CommandCenter = () => {
       };
     }
     // 3. Tapahtuma jonka kysyntä korkea
-    const event = state.events.find((e) => e.demandLevel === "red") ?? state.events[0];
+    const demandEvents = state.events.filter((e) => !isLowTaxiDemandEvent(e.name, e.venue));
+    const event = demandEvents.find((e) => e.demandLevel === "red") ?? demandEvents[0];
     if (event) {
       const endClock = event.endsIn > 0 ? minutesToClock(event.endsIn) : "loppunut";
       return {
