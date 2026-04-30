@@ -2,14 +2,18 @@ import CommandCenter from "@/components/CommandCenter";
 import JackpotAlert from "@/components/JackpotAlert";
 import PrebookingsCard from "@/components/PrebookingsCard";
 import NextArrivalsCarousel from "@/components/NextArrivalsCarousel";
+import SuggestionButton from "@/components/SuggestionButton";
 
 const TutkaTab = () => {
   return (
     <div className="px-4 pt-2 pb-6 space-y-6">
       <section aria-label="Suositusalue">
-        <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 px-1">
-          Suositusalue
-        </h2>
+        <div className="flex items-center justify-between mb-2 px-1">
+          <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+            Suositusalue
+          </h2>
+          <SuggestionButton feature="Tutka / Suositusalue" />
+        </div>
         <CommandCenter />
         <div className="mt-3">
           <JackpotAlert />
@@ -17,16 +21,22 @@ const TutkaTab = () => {
       </section>
 
       <section aria-label="Seuraavat saapujat">
-        <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 px-1">
-          Seuraavat saapujat
-        </h2>
+        <div className="flex items-center justify-between mb-2 px-1">
+          <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+            Seuraavat saapujat
+          </h2>
+          <SuggestionButton feature="Tutka / Seuraavat saapujat" />
+        </div>
         <NextArrivalsCarousel />
       </section>
 
       <section aria-label="Ennakkotilaukset">
-        <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 px-1">
-          Ennakkotilaukset
-        </h2>
+        <div className="flex items-center justify-between mb-2 px-1">
+          <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+            Ennakkotilaukset
+          </h2>
+          <SuggestionButton feature="Tutka / Ennakkotilaukset" />
+        </div>
         <PrebookingsCard />
       </section>
     </div>
