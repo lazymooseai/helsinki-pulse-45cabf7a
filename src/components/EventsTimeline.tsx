@@ -44,6 +44,7 @@ import {
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { formatTolppaLabel, detectDriverArea, driverAreaLabel, TOLPAT, distanceKm } from "@/lib/tolppaLocations";
 import { getManualTolppa, setManualTolppa } from "@/lib/manualTolppaOverrides";
+import { isLowTaxiDemandEvent } from "@/lib/eventDemandFilters";
 import {
   Popover,
   PopoverContent,
@@ -392,9 +393,11 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
     state.flights.forEach((f) => items.push(flightToTimelineItem(f)));
     state.trainDelays.forEach((t) => items.push(trainToTimelineItem(t, stationName)));
     state.shipArrivals.forEach((s) => items.push(shipToTimelineItem(s)));
-    state.events.forEach((e) => items.push(eventToTimelineItem(e)));
-    upcomingEvents.forEach((e) => items.push(eventToTimelineItem(e)));
-    state.sportsEvents.forEach((s) => items.push(sportsToTimelineItem(s)));
+    state.events.filter((e) => !isLowTaxiDemandEvent(e.name, e.venue)).forEach((e) => items.push(eventToTimelineItem(e)));
+    upcomingEvents.filter((e) => !isLowTaxiDemandEvent(e.name, e.venue)).forEach((e) => items.push(eventToTimelineItem(e)));
+    state.sportsEvents
+      .filter((s) => !isLowTaxiDemandEvent(`${s.homeTeam} ${s.awayTeam}`, s.venue))
+      .forEach((s) => items.push(sportsToTimelineItem(s)));
     politicalEvents.forEach((p) => items.push(politicalToTimelineItem(p)));
     // Sovella käyttäjän manuaaliset tolppa-overridet ennen etäisyyslaskua
     const overridden = items.map((it) => {
