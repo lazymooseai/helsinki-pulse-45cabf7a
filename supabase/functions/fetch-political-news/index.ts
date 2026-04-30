@@ -215,8 +215,14 @@ Deno.serve(async (req) => {
       console.warn("Wikidata fail:", e instanceof Error ? e.message : e);
       return [] as PoliticalEv[];
     });
-    const events = [...wd];
-    console.log(`fetch-political-news: wikidata=${wd.length}`);
+    // 2) Some-agentti: skannaa lehdistö joukkotapahtumista ja
+    //    järjestyshäiriöistä (ilmainen Gemini Lovable AI Gatewayn kautta).
+    const socialEvents = await fetchSocialAgent().catch((e) => {
+      console.warn("Social agent fail:", e instanceof Error ? e.message : e);
+      return [] as PoliticalEv[];
+    });
+    const events = [...wd, ...socialEvents];
+    console.log(`fetch-political-news: wikidata=${wd.length} social=${socialEvents.length}`);
 
     // Siivoa vanhat eduskunta-cal -rivit kannasta (lähteen poiston jälkeen)
     await supabase
