@@ -15,7 +15,12 @@ interface RowProps {
   paxProminent?: boolean;
 }
 
-const Row = ({ icon, title, sub, time, delay = 0, pax, status, paxProminent }: RowProps) => {
+interface RowExtra {
+  /** Salli sub-kentässä rivinvaihto (esim. lentojen lähtöpaikka, joka voi olla pitkä). */
+  subWrap?: boolean;
+}
+
+const Row = ({ icon, title, sub, time, delay = 0, pax, status, paxProminent, subWrap }: RowProps & RowExtra) => {
   const delayed = delay > 5;
   const slight = delay > 0 && !delayed;
   return (
@@ -33,7 +38,13 @@ const Row = ({ icon, title, sub, time, delay = 0, pax, status, paxProminent }: R
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-black text-xl text-foreground truncate">{title}</p>
-        <p className="text-sm text-muted-foreground font-bold truncate">{sub}</p>
+        <p
+          className={`text-sm text-muted-foreground font-bold ${
+            subWrap ? "break-words leading-snug" : "truncate"
+          }`}
+        >
+          {sub}
+        </p>
         {paxProminent && pax !== undefined && pax > 0 ? (
           <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-primary/15 px-2 py-1 text-primary">
             <Users className="h-4 w-4" />
@@ -136,6 +147,7 @@ const ArrivalsList = ({ mode }: { mode: TransportMode }) => {
           icon={<Plane className="h-7 w-7" />}
           title={f.flightNumber}
           sub={f.origin}
+          subWrap
           time={f.estimatedTime}
           delay={f.delayMinutes}
           status={f.status}
