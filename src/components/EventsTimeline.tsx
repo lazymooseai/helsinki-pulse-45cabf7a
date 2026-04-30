@@ -139,6 +139,11 @@ const TimelineCard = ({ item, onClick }: TimelineCardProps) => {
     item.endTime && item.time && item.endTime !== item.time
       ? `${item.time}–${item.endTime}`
       : item.time || "—";
+  // Tolppa-muokkaus on käytettävissä vain venue-pohjaisissa (event/sports/political)
+  const canEditTolppa =
+    item.raw.kind === "event" ||
+    item.raw.kind === "sports" ||
+    item.raw.kind === "political";
   return (
     <button
       onClick={onClick}
@@ -162,21 +167,30 @@ const TimelineCard = ({ item, onClick }: TimelineCardProps) => {
         <p className="text-sm text-muted-foreground font-semibold truncate mt-1">
           {item.subtitle}
         </p>
-        {item.tolppa && (
-          <p className="flex items-center gap-1 mt-1 text-[12px] font-black uppercase tracking-wider text-primary">
-            <MapPin className="h-3.5 w-3.5" />
-            <span className="truncate">
-              {formatTolppaLabel(item.tolppa)}
-              {item.tolppaKmFromUser != null && (
-                <span className="ml-1 text-foreground/80">
-                  • {item.tolppaKmFromUser < 1
-                    ? `${Math.round(item.tolppaKmFromUser * 1000)} m`
-                    : `${item.tolppaKmFromUser.toFixed(1)} km`}
-                </span>
-              )}
-            </span>
-          </p>
-        )}
+        <div className="flex items-center gap-1 mt-1">
+          {item.tolppa ? (
+            <p className="flex items-center gap-1 text-[12px] font-black uppercase tracking-wider text-primary min-w-0">
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">
+                {formatTolppaLabel(item.tolppa)}
+                {item.tolppaKmFromUser != null && (
+                  <span className="ml-1 text-foreground/80">
+                    • {item.tolppaKmFromUser < 1
+                      ? `${Math.round(item.tolppaKmFromUser * 1000)} m`
+                      : `${item.tolppaKmFromUser.toFixed(1)} km`}
+                  </span>
+                )}
+              </span>
+            </p>
+          ) : canEditTolppa ? (
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground italic">
+              Tolppa tuntematon
+            </p>
+          ) : null}
+          {canEditTolppa && (
+            <TolppaEditor item={item} />
+          )}
+        </div>
         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
           {dateBadge && (
             <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-primary/15 text-primary">
