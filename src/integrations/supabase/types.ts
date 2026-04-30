@@ -137,6 +137,36 @@ export type Database = {
         }
         Relationships: []
       }
+      feature_feedback: {
+        Row: {
+          context: string | null
+          created_at: string
+          feature: string
+          id: string
+          message: string
+          rating: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          context?: string | null
+          created_at?: string
+          feature: string
+          id?: string
+          message: string
+          rating?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          context?: string | null
+          created_at?: string
+          feature?: string
+          id?: string
+          message?: string
+          rating?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       political_events: {
         Row: {
           actual_end_time: string | null
