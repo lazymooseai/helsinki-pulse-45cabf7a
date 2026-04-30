@@ -32,6 +32,7 @@ function shouldIgnore(args: unknown[]): boolean {
   return (
     text.includes("React Router Future Flag Warning") ||
     text.includes("Unknown message type: RESET_BLANK_CHECK") ||
+    text.includes("Function components cannot be given refs") ||
     text.includes("Download the React DevTools")
   );
 }
