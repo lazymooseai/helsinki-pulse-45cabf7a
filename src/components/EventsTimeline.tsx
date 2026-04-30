@@ -81,6 +81,91 @@ const ITEM_ICON: Record<TimelineItem["raw"]["kind"], React.ReactNode> = {
 
 const HARD_LIMIT_PER_TAB = 5;
 
+/**
+ * Pieni popover-pohjainen tolpan korjausnappi. Käyttäjä voi valita
+ * lähimmistä 12 tolpasta (jos GPS päällä) tai aakkosellisesta listasta
+ * oikean tolpan tapahtumalle. Tallennus localStorageen.
+ */
+const TolppaEditor = ({ item }: { item: TimelineItem }) => {
+  const { coords } = useGeolocation();
+  const [open, setOpen] = useState(false);
+  // Lähimmät 12 tolppaa kuljettajan sijainnista, muuten aakkosellisesti.
+  const options = useMemo(() => {
+    const list = [...TOLPAT];
+    if (coords) {
+      list.sort(
+        (a, b) =>
+          distanceKm(coords.latitude, coords.longitude, a.lat, a.lon) -
+          distanceKm(coords.latitude, coords.longitude, b.lat, b.lon),
+      );
+      return list.slice(0, 16);
+    }
+    list.sort((a, b) => a.name.localeCompare(b.name, "fi"));
+    return list;
+  }, [coords]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen(true);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.stopPropagation();
+              setOpen(true);
+            }
+          }}
+          className="ml-auto shrink-0 inline-flex items-center justify-center h-6 w-6 rounded text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+          aria-label="Korjaa tolppa"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </span>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-72 p-2"
+        align="end"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground px-1 pb-1">
+          Valitse tolppa
+        </p>
+        <div className="max-h-64 overflow-y-auto">
+          {options.map((t) => (
+            <button
+              key={t.name}
+              onClick={(e) => {
+                e.stopPropagation();
+                setManualTolppa(item.id, t.name);
+                setOpen(false);
+              }}
+              className="w-full text-left text-sm px-2 py-1.5 rounded hover:bg-muted truncate"
+            >
+              {formatTolppaLabel(t)}
+            </button>
+          ))}
+        </div>
+        <div className="border-t border-border mt-1 pt-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setManualTolppa(item.id, "");
+              setOpen(false);
+            }}
+            className="w-full text-left text-xs px-2 py-1.5 rounded text-destructive hover:bg-destructive/10"
+          >
+            Poista tolppa tästä tapahtumasta
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
 function formatRelative(startMs: number): string {
   const min = Math.round(startMs / 60000);
   if (min < -5) return `${Math.abs(min)} min sitten`;
