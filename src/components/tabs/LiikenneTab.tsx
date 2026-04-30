@@ -2,6 +2,7 @@ import { useState } from "react";
 import ArrivalsList, { TransportMode } from "@/components/ArrivalsList";
 import { useDashboard } from "@/context/DashboardContext";
 import { TRAIN_STATIONS, type TrainStation } from "@/lib/fintraffic";
+import SuggestionButton from "@/components/SuggestionButton";
 
 const FILTERS: { key: TransportMode; label: string }[] = [
   { key: "trains", label: "Junat" },
@@ -63,6 +64,9 @@ const LiikenneTab = () => {
       </div>
 
       <div className="px-4 pt-4">
+        <div className="flex justify-end mb-2">
+          <SuggestionButton feature={`Liikenne / ${mode}`} />
+        </div>
         <ArrivalsList mode={mode} />
       </div>
     </div>
