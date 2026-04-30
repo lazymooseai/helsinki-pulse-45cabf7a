@@ -297,6 +297,8 @@ const VENUE_TOLPPA_OVERRIDES: Record<string, string> = {
   "suomalainen klubi": "Kasarmikatu",
   "helsingin suomalainen klubi": "Kasarmikatu",
   "klubi": "Kasarmikatu",
+  // Käyttäjän vahvistama: Suomalainen Klubi → tolppa 96 Simonkenttä
+  "suomalainen klubi ": "Simonkenttä",
   // Hotellit
   "hotel kämp": "Kämp",
   "kamp": "Kämp",
@@ -317,9 +319,11 @@ const VENUE_TOLPPA_OVERRIDES: Record<string, string> = {
   "jaahalli": "Veikkaus Areena",
   "jäähalli": "Veikkaus Areena",
   "nordis": "Veikkaus Areena",
-  "olympiastadion": "Töölöntori",
-  "bolt arena": "Töölöntori",
-  "helsingin olympiastadion": "Töölöntori",
+  // Käyttäjän vahvistama: Olympiastadion-alue → Ooppera/Itä-Töölö (tolppa 52)
+  "olympiastadion": "Ooppera",
+  "bolt arena": "Ooppera",
+  "helsingin olympiastadion": "Ooppera",
+  "urheilumuseo": "Ooppera",
   // Messut
   "messukeskus": "Pasila",
   "messukeskus helsinki": "Pasila",
