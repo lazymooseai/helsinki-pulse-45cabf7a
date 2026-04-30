@@ -1,13 +1,12 @@
-# Memory: index.md
-Updated: now
-
 # Project Memory
 
 ## Core
-- High-contrast UI: bg-slate-900, massive text (4xl/5xl font-black), neon green/red. Finnish text. Optimize for arm's length driving.
-- All interactive cards and control room items must open verified external deep links in new tabs.
+- High-contrast UI: bg-slate-900, massive text (4xl/5xl font-black), levollinen turkoosi-sininen --primary (188 72% 50%) korvaa aiemman neonvihreän. Finnish text. Optimize for arm's length driving (html base 18-19 px).
+- All interactive cards and control room items must open verified external deep links in new tabs. Linkit on tarkistettava (curl -I) ennen lisäystä.
 - Use Supabase Edge Functions to proxy external APIs (Fintraffic, Open-Meteo, HSL, Finavia) to bypass CORS.
-- Data freshness: display green 'LIVE' dot for recent, gray 'AIKATAULU' dot for stale (>30m). Pulse external link icon when stale.
+- Data freshness: display 'LIVE' dot for recent, gray 'AIKATAULU' dot for stale (>30m). Pulse external link icon when stale.
+- HKT tolppa = 18 (Eläintarhantie). HKT-tapahtumiin näyttämömerkintä subtitleen (Suuri/Arena/Studio Pasila/Pieni).
+- Lentojen lähtöpaikan nimi (origin) ei saa truncatea — käytä break-words.
 
 ## Memories
 - [Visual Identity](mem://design/visual-identity) — High-contrast, ultra-legible dashboard UI for drivers (Finnish)
@@ -21,8 +20,8 @@ Updated: now
 - [Situational Awareness](mem://features/situational-awareness) — HSL alerts, traffic cameras, and emergency links
 - [Interactive Data Cards](mem://features/interactive-data-cards) — Interactive links and freshness indicators on all data cards
 - [Train Station Selector](mem://features/train-station-selector) — Toggles between HKI, PSL, TKL stations, filtered for HKI-bound traffic
-- [Prebookings](mem://features/prebookings) — Ennakkotilausten syotto (kuva/PDF/teksti) + heatmap + halytys lahituntien ennakoista suosituksessa
-- [Dispatch Scanner](mem://features/dispatch-scanner) — Camera + AI-OCR (Gemini 2.5 Flash) for Taksi Helsinki dispatch screen → live K/T per tolppa
-- [Trip History](mem://features/trip-history) — taxi_trips & trip_patterns: tuonti (CSV/XLSX), manuaalinen syöttö, haku, analytiikkakortti
-- [Real-Time Refresh](mem://features/real-time-refresh) — Per-source refresh intervals and visible countdown indicator on data tabs
-- [Flights & Sports](mem://features/flights-sports) — HEL-Vantaa flight arrivals (Finavia) + sports events with teams/attendance
+- [Prebookings](mem://features/prebookings) — Ennakkotilausten syotto + heatmap + halytys
+- [Dispatch Scanner](mem://features/dispatch-scanner) — Camera + AI-OCR for Taksi Helsinki dispatch screen
+- [Trip History](mem://features/trip-history) — taxi_trips & trip_patterns
+- [Real-Time Refresh](mem://features/real-time-refresh) — Per-source refresh intervals and visible countdown
+- [Flights & Sports](mem://features/flights-sports) — HEL-Vantaa flight arrivals + sports events

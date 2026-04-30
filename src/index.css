@@ -15,7 +15,9 @@
     --popover: 217 33% 14%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 142 71% 45%;
+    /* Levollinen turkoosi-sininen (korvaa aiemman neonvihreän).
+       Riittävä kontrasti tummalla pohjalla, mutta silmäystävällinen ajossa. */
+    --primary: 188 72% 50%;
     --primary-foreground: 222 47% 8%;
 
     --secondary: 217 33% 20%;
@@ -30,8 +32,9 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --neon-green: 142 71% 45%;
-    --neon-green-glow: 142 71% 45% / 0.3;
+    /* "neon-green" -nimi säilyy backwards compat -syistä, mutta sävy on nyt turkoosi. */
+    --neon-green: 188 72% 50%;
+    --neon-green-glow: 188 72% 50% / 0.28;
     --neon-red: 0 84% 60%;
     --neon-red-glow: 0 84% 60% / 0.25;
     --neon-amber: 45 93% 47%;
@@ -39,24 +42,34 @@
 
     --border: 217 33% 22%;
     --input: 217 33% 22%;
-    --ring: 142 71% 45%;
+    --ring: 188 72% 50%;
 
     --radius: 0.75rem;
 
     --sidebar-background: 222 47% 8%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 142 71% 45%;
+    --sidebar-primary: 188 72% 50%;
     --sidebar-primary-foreground: 222 47% 8%;
     --sidebar-accent: 217 33% 18%;
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 217 33% 22%;
-    --sidebar-ring: 142 71% 45%;
+    --sidebar-ring: 188 72% 50%;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+  }
+
+  html {
+    /* Suurempi peruskoko: kuljettaja katsoo näyttöä käsivarren mitan päästä.
+       Nostaa kaikkia rem-pohjaisia kokoja ~12.5 % ilman layoutin rikkomista. */
+    font-size: 18px;
+  }
+
+  @media (min-width: 768px) {
+    html { font-size: 19px; }
   }
 
   body {

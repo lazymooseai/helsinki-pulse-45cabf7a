@@ -266,6 +266,35 @@ export function categorizeVenue(venue: string): EventCategory {
   return categorizeEvent("", venue);
 }
 
+/**
+ * Helsingin kaupunginteatteri (HKT) -tapahtumiin näyttämömerkintä:
+ *   - Suuri näyttämö (~1120 paikkaa)
+ *   - Arena-näyttämö (~500)
+ *   - Studio Pasila (~320)
+ *   - Pieni näyttämö (~250)
+ * Auttaa kuljettajaa arvioimaan kysynnän kokoluokan suoraan listalta.
+ * Palauttaa subtitlen muodossa "Helsingin Kaupunginteatteri • Suuri näyttämö (1120)"
+ * jos näyttämö tunnistetaan, muuten venue sellaisenaan.
+ */
+export function annotateHktStage(name: string, venue: string): string {
+  const txt = `${name} ${venue}`.toLowerCase();
+  const isHkt = /kaupunginteatteri|\bhkt\b/.test(txt);
+  if (!isHkt) return venue;
+
+  let stage: string | null = null;
+  if (/arena[\s-]?näyttämö|arena[\s-]?nayttamo/.test(txt)) stage = "Arena-näyttämö (n. 500)";
+  else if (/studio pasila/.test(txt)) stage = "Studio Pasila (n. 320)";
+  else if (/pieni näyttämö|pieni nayttamo/.test(txt)) stage = "Pieni näyttämö (n. 250)";
+  else if (/suuri näyttämö|suuri nayttamo/.test(txt)) stage = "Suuri näyttämö (n. 1120)";
+
+  // Jos venue on jo kuvaileva (sisältää "näyttämö"), näytetään se sellaisenaan.
+  if (/näyttämö|nayttamo|studio pasila/i.test(venue)) return venue;
+
+  if (stage) return `Helsingin Kaupunginteatteri • ${stage}`;
+  // HKT mainittu mutta näyttämöä ei tunnistettu → todennäköisin = Suuri näyttämö
+  return "Helsingin Kaupunginteatteri • todnäk. Suuri näyttämö";
+}
+
 // ---------------------------------------------------------------------------
 // Aika-apurit
 // ---------------------------------------------------------------------------
@@ -327,11 +356,15 @@ export function eventToTimelineItem(e: EventInfo): TimelineItem {
       : undefined;
 
   const tolppaMatch = findTolppaForVenue(e.venue);
+  // Helsingin kaupunginteatterin tapahtumiin näyttämömerkintä subtitleen
+  // (Suuri näyttämö = 1120, Arena = 500, Studio Pasila = 320, Pieni = 250).
+  // Auttaa kuljettajaa arvioimaan kysynnän kokoluokan suoraan listalta.
+  const subtitle = annotateHktStage(e.name, e.venue);
   return {
     id: `event-${e.id}`,
     category: categorizeEvent(e.name, e.venue),
     title: e.name,
-    subtitle: e.venue,
+    subtitle,
     time,
     startMs,
     startIso: e.startIso,
@@ -368,7 +401,7 @@ export function flightToTimelineItem(f: FlightArrival): TimelineItem {
     level: f.demandLevel,
     weight,
     tag: f.demandTag,
-    url: `https://www.finavia.fi/fi/lentoasemat/helsinki-vantaa/saapuvat-lennot?flight=${encodeURIComponent(f.flightNumber)}`,
+    url: `https://www.finavia.fi/fi/lentoasemat/helsinki-vantaa/lennot?tab=arr&flight=${encodeURIComponent(f.flightNumber)}`,
     raw: { kind: "flight", data: f },
   };
 }
@@ -390,7 +423,7 @@ export function shipToTimelineItem(s: ShipArrival): TimelineItem {
     level,
     weight,
     capacity: s.pax,
-    url: `https://www.portofhelsinki.fi/matkustajat/aikataulut`,
+    url: `https://averio.fi/laivat`,
     raw: { kind: "ship", data: s },
   };
 }

@@ -33,14 +33,14 @@ const LINKS = {
   ship: "https://averio.fi/laivat",
   weather: "https://www.ilmatieteenlaitos.fi/saa/helsinki",
   event: "https://tapahtumat.hel.fi/fi/",
-  flight: "https://www.finavia.fi/fi/lentoasemat/helsinki-vantaa/saapuvat-lennot",
+  flight: "https://www.finavia.fi/fi/lentoasemat/helsinki-vantaa/lennot?tab=arr",
 };
 
 const VENUE_LINKS: Record<string, string> = {
   olympiastadion: "https://www.stadion.fi/tapahtumat",
-  jaahalli: "https://helsinginjaahalli.fi/tapahtumat",
-  jäähalli: "https://helsinginjaahalli.fi/tapahtumat",
-  nordis: "https://helsinginjaahalli.fi/tapahtumat",
+  jaahalli: "https://helsinginjaahalli.fi/tapahtumat/",
+  jäähalli: "https://helsinginjaahalli.fi/tapahtumat/",
+  nordis: "https://helsinginjaahalli.fi/tapahtumat/",
   hartwall: "https://www.veikkausarena.fi/",
   veikkausarena: "https://www.veikkausarena.fi/",
   "helsinki halli": "https://www.veikkausarena.fi/",
@@ -48,6 +48,14 @@ const VENUE_LINKS: Record<string, string> = {
   ooppera: "https://oopperabaletti.fi/kalenteri/",
   musiikkitalo: "https://www.musiikkitalo.fi/tapahtumat",
   "bolt arena": "https://www.hjk.fi/ottelut/",
+  kaupunginteatteri: "https://hkt.fi/kalenteri/",
+  hkt: "https://hkt.fi/kalenteri/",
+  kansallisteatteri: "https://kansallisteatteri.fi/ohjelmisto/",
+  tavastia: "https://www.tavastiaklubi.fi/",
+  "tanssin talo": "https://www.tanssintalo.fi/ohjelma",
+  savoy: "https://www.savoyteatteri.fi/",
+  kulttuuritalo: "https://kulttuuritalo.fi/",
+  finlandia: "https://www.finlandiatalo.fi/jarjesta-tapahtuma/tulevat-tapahtumat/",
 };
 
 function venueLink(venue: string): string {
