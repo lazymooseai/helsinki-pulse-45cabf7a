@@ -368,7 +368,6 @@ export const VENUE_GEO: Record<string, { lat: number; lon: number }> = {
   "malmitalo": { lat: 60.2503, lon: 25.0094 },
   "stoa": { lat: 60.2103, lon: 25.0807 },
   "tanssin talo": { lat: 60.1604, lon: 24.9211 },
-  "kulttuuritalo": { lat: 60.1880, lon: 24.9489 },
   "tavastia": { lat: 60.1690, lon: 24.9295 },
   "suomalainen klubi": { lat: 60.1672, lon: 24.9498 },
   "helsingin suomalainen klubi": { lat: 60.1672, lon: 24.9498 },
