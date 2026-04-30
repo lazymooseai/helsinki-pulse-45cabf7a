@@ -23,6 +23,7 @@ import {
   ExternalLink,
   Landmark,
   MapPin,
+  Pencil,
 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { TRAIN_STATIONS } from "@/lib/fintraffic";
@@ -41,7 +42,13 @@ import {
   withTolppaDistances,
 } from "@/lib/eventCategories";
 import { useGeolocation } from "@/hooks/useGeolocation";
-import { formatTolppaLabel, detectDriverArea, driverAreaLabel } from "@/lib/tolppaLocations";
+import { formatTolppaLabel, detectDriverArea, driverAreaLabel, TOLPAT, distanceKm } from "@/lib/tolppaLocations";
+import { getManualTolppa, setManualTolppa } from "@/lib/manualTolppaOverrides";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const CATEGORY_ICONS: Record<EventCategory, React.ReactNode> = {
   asemat: <Plane className="h-4 w-4" />,
@@ -73,6 +80,91 @@ const ITEM_ICON: Record<TimelineItem["raw"]["kind"], React.ReactNode> = {
 };
 
 const HARD_LIMIT_PER_TAB = 5;
+
+/**
+ * Pieni popover-pohjainen tolpan korjausnappi. Käyttäjä voi valita
+ * lähimmistä 12 tolpasta (jos GPS päällä) tai aakkosellisesta listasta
+ * oikean tolpan tapahtumalle. Tallennus localStorageen.
+ */
+const TolppaEditor = ({ item }: { item: TimelineItem }) => {
+  const geo = useGeolocation();
+  const [open, setOpen] = useState(false);
+  // Lähimmät 16 tolppaa kuljettajan sijainnista, muuten aakkosellisesti.
+  const options = useMemo(() => {
+    const list = [...TOLPAT];
+    if (geo.lat != null && geo.lon != null) {
+      list.sort(
+        (a, b) =>
+          distanceKm(geo.lat, geo.lon, a.lat, a.lon) -
+          distanceKm(geo.lat, geo.lon, b.lat, b.lon),
+      );
+      return list.slice(0, 16);
+    }
+    list.sort((a, b) => a.name.localeCompare(b.name, "fi"));
+    return list;
+  }, [geo.lat, geo.lon]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen(true);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.stopPropagation();
+              setOpen(true);
+            }
+          }}
+          className="ml-auto shrink-0 inline-flex items-center justify-center h-6 w-6 rounded text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+          aria-label="Korjaa tolppa"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </span>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-72 p-2"
+        align="end"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground px-1 pb-1">
+          Valitse tolppa
+        </p>
+        <div className="max-h-64 overflow-y-auto">
+          {options.map((t) => (
+            <button
+              key={t.name}
+              onClick={(e) => {
+                e.stopPropagation();
+                setManualTolppa(item.id, t.name);
+                setOpen(false);
+              }}
+              className="w-full text-left text-sm px-2 py-1.5 rounded hover:bg-muted truncate"
+            >
+              {formatTolppaLabel(t)}
+            </button>
+          ))}
+        </div>
+        <div className="border-t border-border mt-1 pt-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setManualTolppa(item.id, "");
+              setOpen(false);
+            }}
+            className="w-full text-left text-xs px-2 py-1.5 rounded text-destructive hover:bg-destructive/10"
+          >
+            Poista tolppa tästä tapahtumasta
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 function formatRelative(startMs: number): string {
   const min = Math.round(startMs / 60000);
@@ -132,6 +224,11 @@ const TimelineCard = ({ item, onClick }: TimelineCardProps) => {
     item.endTime && item.time && item.endTime !== item.time
       ? `${item.time}–${item.endTime}`
       : item.time || "—";
+  // Tolppa-muokkaus on käytettävissä vain venue-pohjaisissa (event/sports/political)
+  const canEditTolppa =
+    item.raw.kind === "event" ||
+    item.raw.kind === "sports" ||
+    item.raw.kind === "political";
   return (
     <button
       onClick={onClick}
@@ -155,21 +252,30 @@ const TimelineCard = ({ item, onClick }: TimelineCardProps) => {
         <p className="text-sm text-muted-foreground font-semibold truncate mt-1">
           {item.subtitle}
         </p>
-        {item.tolppa && (
-          <p className="flex items-center gap-1 mt-1 text-[12px] font-black uppercase tracking-wider text-primary">
-            <MapPin className="h-3.5 w-3.5" />
-            <span className="truncate">
-              {formatTolppaLabel(item.tolppa)}
-              {item.tolppaKmFromUser != null && (
-                <span className="ml-1 text-foreground/80">
-                  • {item.tolppaKmFromUser < 1
-                    ? `${Math.round(item.tolppaKmFromUser * 1000)} m`
-                    : `${item.tolppaKmFromUser.toFixed(1)} km`}
-                </span>
-              )}
-            </span>
-          </p>
-        )}
+        <div className="flex items-center gap-1 mt-1">
+          {item.tolppa ? (
+            <p className="flex items-center gap-1 text-[12px] font-black uppercase tracking-wider text-primary min-w-0">
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">
+                {formatTolppaLabel(item.tolppa)}
+                {item.tolppaKmFromUser != null && (
+                  <span className="ml-1 text-foreground/80">
+                    • {item.tolppaKmFromUser < 1
+                      ? `${Math.round(item.tolppaKmFromUser * 1000)} m`
+                      : `${item.tolppaKmFromUser.toFixed(1)} km`}
+                  </span>
+                )}
+              </span>
+            </p>
+          ) : canEditTolppa ? (
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground italic">
+              Tolppa tuntematon
+            </p>
+          ) : null}
+          {canEditTolppa && (
+            <TolppaEditor item={item} />
+          )}
+        </div>
         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
           {dateBadge && (
             <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-primary/15 text-primary">
@@ -272,6 +378,14 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
   const stationName =
     TRAIN_STATIONS.find((s) => s.code === trainStation)?.name || "Helsinki";
 
+  // Triggeri uudelleenrenderille kun käyttäjä muuttaa manuaalista tolppa-overridea
+  const [manualVer, setManualVer] = useState(0);
+  useEffect(() => {
+    const handler = () => setManualVer((v) => v + 1);
+    window.addEventListener("manual-tolppa-changed", handler);
+    return () => window.removeEventListener("manual-tolppa-changed", handler);
+  }, []);
+
   // Yhdista kaikki lahteet TimelineItemeiksi
   const allItems: TimelineItem[] = useMemo(() => {
     const items: TimelineItem[] = [];
@@ -282,7 +396,14 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
     upcomingEvents.forEach((e) => items.push(eventToTimelineItem(e)));
     state.sportsEvents.forEach((s) => items.push(sportsToTimelineItem(s)));
     politicalEvents.forEach((p) => items.push(politicalToTimelineItem(p)));
-    return withTolppaDistances(items, userLat, userLon);
+    // Sovella käyttäjän manuaaliset tolppa-overridet ennen etäisyyslaskua
+    const overridden = items.map((it) => {
+      const m = getManualTolppa(it.id);
+      if (m === undefined) return it; // ei overridea
+      if (m === null) return { ...it, tolppa: undefined }; // käyttäjä poisti
+      return { ...it, tolppa: m };
+    });
+    return withTolppaDistances(overridden, userLat, userLon);
   }, [
     state.flights,
     state.trainDelays,
@@ -294,6 +415,7 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
     stationName,
     userLat,
     userLon,
+    manualVer,
   ]);
 
   // Suodata aika-ikkunan mukaan + ryhmita kategorioihin
