@@ -2,6 +2,7 @@ import TripsTabs from "@/components/trips/TripsTabs";
 import TripHistoryCard from "@/components/trips/TripHistoryCard";
 import FeedbackButtons from "@/components/FeedbackButtons";
 import DevTools from "@/components/DevTools";
+import SuggestionButton from "@/components/SuggestionButton";
 
 const HallintaTab = () => {
   return (
@@ -21,6 +22,21 @@ const HallintaTab = () => {
       </section>
 
       <FeedbackButtons />
+
+      <section aria-label="Kehitysehdotukset" className="rounded-xl border border-border bg-card/40 p-4 space-y-2">
+        <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
+          Kehitysehdotukset
+        </h2>
+        <p className="text-sm text-muted-foreground/90">
+          Lähetä kehitystiimille konkreettinen ehdotus, virheilmoitus tai uusi
+          idea. Pikanappi löytyy myös ruudun oikeasta alakulmasta (lamppu-ikoni)
+          ja jokaisen osion otsikon vierestä.
+        </p>
+        <div className="pt-1">
+          <SuggestionButton feature="Hallinta / Yleinen palaute" context="Yleinen kehitysehdotus tai virheilmoitus" />
+        </div>
+      </section>
+
       <DevTools />
     </div>
   );
