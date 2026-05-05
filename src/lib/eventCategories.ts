@@ -450,7 +450,9 @@ export function trainToTimelineItem(t: TrainDelay, stationName: string): Timelin
 }
 
 export function sportsToTimelineItem(s: SportsEvent): TimelineItem {
-  const startMs = timeToMs(s.startTime);
+  const startMs = s.startIso
+    ? new Date(s.startIso).getTime() - Date.now()
+    : timeToMs(s.startTime);
   const audience = profileAudience(`${s.homeTeam} vs ${s.awayTeam}`, s.venue, s.capacity);
   const weight =
     (s.demandLevel === "red" ? 100 : s.demandLevel === "amber" ? 50 : 20) +
@@ -474,6 +476,8 @@ export function sportsToTimelineItem(s: SportsEvent): TimelineItem {
     loadPct:
       s.capacity > 0 ? Math.round((s.expectedAttendance / s.capacity) * 100) : undefined,
     tolppa: tolppaMatch?.tolppa,
+    startIso: s.startIso,
+    endTime: s.endIso ? new Date(s.endIso).toTimeString().slice(0, 5) : undefined,
     url: `https://www.google.com/search?q=${encodeURIComponent(`${s.homeTeam} ${s.awayTeam} liput`)}`,
     raw: { kind: "sports", data: s },
   };
