@@ -339,5 +339,7 @@ export async function fetchLinkedEvents(): Promise<EventInfo[]> {
   });
 
   // Rajoita kohtuulliseen kokoon
-  return out.slice(0, 60);
+  const result = out.slice(0, 60);
+  if (result.length > 0) writeCache(result);
+  return result;
 }
