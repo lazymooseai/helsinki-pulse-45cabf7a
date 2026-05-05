@@ -457,7 +457,7 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
       : allItems;
     for (const item of filtered) {
       if (isItemToday(item)) {
-        if (inWindow(item, maxMin)) {
+        if (inWindow(item, maxMin) || isTodayUntilMidnight(item)) {
           today[item.category].push(item);
         } else if (item.startMs > maxMin * 60_000) {
           // Saman paivan myohemmat tapahtumat eivat saa kadota aikaikkunan taakse.
@@ -504,10 +504,13 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
   const todayItems = todayGrouped[activeCategory];
   const upcomingItems = upcomingGrouped[activeCategory];
   const isExpanded = expanded[activeCategory];
+  const isUpcomingOpen = showUpcoming[activeCategory];
   const visibleToday = isExpanded ? todayItems : todayItems.slice(0, HARD_LIMIT_PER_TAB);
-  const visibleUpcoming = isExpanded ? upcomingItems : upcomingItems.slice(0, HARD_LIMIT_PER_TAB);
+  const visibleUpcoming = isUpcomingOpen
+    ? isExpanded ? upcomingItems : upcomingItems.slice(0, HARD_LIMIT_PER_TAB)
+    : [];
   const hiddenToday = todayItems.length - visibleToday.length;
-  const hiddenUpcoming = upcomingItems.length - visibleUpcoming.length;
+  const hiddenUpcoming = isUpcomingOpen ? upcomingItems.length - visibleUpcoming.length : 0;
   const hiddenCount = hiddenToday + hiddenUpcoming;
   const hasAnything = visibleToday.length > 0 || visibleUpcoming.length > 0;
 
@@ -522,6 +525,7 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
   // Kun tabia vaihdetaan, palauta laajennus oletukseen
   useEffect(() => {
     setExpanded((prev) => ({ ...prev, [activeCategory]: false }));
+    setShowUpcoming((prev) => ({ ...prev, [activeCategory]: false }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabIdx, windowH]);
 
