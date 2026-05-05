@@ -38,10 +38,12 @@ function isToday(iso: string): boolean {
 
 function isCurrentlyActive(startIso: string, endIso?: string | null): boolean {
   const now = Date.now();
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
   const s = new Date(startIso).getTime();
-  const e = endIso ? new Date(endIso).getTime() : s + 3 * 60 * 60 * 1000;
-  // Naytetaan 4h ennen alkua jos tanaan, ja kunnes loppuu
-  return now >= s - 4 * 60 * 60 * 1000 && now <= e;
+  const e = endIso ? new Date(endIso).getTime() : todayEnd.getTime();
+  // Näytetään tämän päivän tapahtumat klo 24 asti, ei vain 4h ikkunassa.
+  return now <= Math.max(e, todayEnd.getTime());
 }
 
 function getDemandTagFromLevel(level: string, soldOut: boolean): string {
@@ -163,7 +165,7 @@ export async function fetchEventsBundle(): Promise<EventsBundle> {
     seenKeys.add(key);
 
     const startIso = ev.startIso ?? "";
-    if (isToday(startIso) && isCurrentlyActive(startIso, ev.endTime ? null : null)) {
+    if (isToday(startIso) && isCurrentlyActive(startIso)) {
       today.push(ev);
     } else if (!isToday(startIso) || new Date(startIso).getTime() > Date.now()) {
       upcoming.push(ev);

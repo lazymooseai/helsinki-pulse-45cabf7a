@@ -18,6 +18,7 @@ import {
   Trophy,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Clock,
   Plus,
   ExternalLink,
@@ -81,6 +82,17 @@ const ITEM_ICON: Record<TimelineItem["raw"]["kind"], React.ReactNode> = {
 };
 
 const HARD_LIMIT_PER_TAB = 5;
+
+function isEventLike(item: TimelineItem): boolean {
+  return item.raw.kind === "event" || item.raw.kind === "sports" || item.raw.kind === "political";
+}
+
+function isTodayUntilMidnight(item: TimelineItem): boolean {
+  if (!isItemToday(item) || !isEventLike(item)) return false;
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  return item.startMs > -24 * 60 * 60_000 && Date.now() <= end.getTime();
+}
 
 /**
  * Pieni popover-pohjainen tolpan korjausnappi. Käyttäjä voi valita
@@ -375,6 +387,13 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
     politiikka: false,
     muut: false,
   });
+  const [showUpcoming, setShowUpcoming] = useState<Record<EventCategory, boolean>>({
+    asemat: false,
+    kulttuuri: false,
+    urheilu: false,
+    politiikka: false,
+    muut: false,
+  });
 
   const stationName =
     TRAIN_STATIONS.find((s) => s.code === trainStation)?.name || "Helsinki";
@@ -438,7 +457,7 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
       : allItems;
     for (const item of filtered) {
       if (isItemToday(item)) {
-        if (inWindow(item, maxMin)) {
+        if (inWindow(item, maxMin) || isTodayUntilMidnight(item)) {
           today[item.category].push(item);
         } else if (item.startMs > maxMin * 60_000) {
           // Saman paivan myohemmat tapahtumat eivat saa kadota aikaikkunan taakse.
@@ -485,12 +504,15 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
   const todayItems = todayGrouped[activeCategory];
   const upcomingItems = upcomingGrouped[activeCategory];
   const isExpanded = expanded[activeCategory];
+  const isUpcomingOpen = showUpcoming[activeCategory];
   const visibleToday = isExpanded ? todayItems : todayItems.slice(0, HARD_LIMIT_PER_TAB);
-  const visibleUpcoming = isExpanded ? upcomingItems : upcomingItems.slice(0, HARD_LIMIT_PER_TAB);
+  const visibleUpcoming = isUpcomingOpen
+    ? isExpanded ? upcomingItems : upcomingItems.slice(0, HARD_LIMIT_PER_TAB)
+    : [];
   const hiddenToday = todayItems.length - visibleToday.length;
-  const hiddenUpcoming = upcomingItems.length - visibleUpcoming.length;
+  const hiddenUpcoming = isUpcomingOpen ? upcomingItems.length - visibleUpcoming.length : 0;
   const hiddenCount = hiddenToday + hiddenUpcoming;
-  const hasAnything = visibleToday.length > 0 || visibleUpcoming.length > 0;
+  const hasAnything = visibleToday.length > 0 || upcomingItems.length > 0;
 
   // Swipe handlers
   const swipe = useSwipeable({
@@ -503,6 +525,7 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
   // Kun tabia vaihdetaan, palauta laajennus oletukseen
   useEffect(() => {
     setExpanded((prev) => ({ ...prev, [activeCategory]: false }));
+    setShowUpcoming((prev) => ({ ...prev, [activeCategory]: false }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabIdx, windowH]);
 
@@ -660,19 +683,23 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
             {/* TULEVAT PAIVAT */}
             {upcomingItems.length > 0 && (
               <div className="flex flex-col gap-2">
-                <h3 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/80 px-1 pt-1 border-t border-border/40">
-                  Myohemmin / tulevat ({upcomingItems.length})
-                </h3>
-                {visibleUpcoming.map((item) => (
-                  <TimelineCard
-                    key={item.id}
-                    item={item}
-                    onClick={() => {
-                      if (item.url) window.open(item.url, "_blank", "noopener,noreferrer");
-                      onSelect?.(item);
-                    }}
-                  />
-                ))}
+                <button
+                  onClick={() => setShowUpcoming((prev) => ({ ...prev, [activeCategory]: !prev[activeCategory] }))}
+                  className="w-full rounded-xl border border-border bg-muted/60 px-4 py-3 flex items-center justify-between text-sm font-black uppercase tracking-wider text-primary active:scale-[0.98]"
+                >
+                  <span>Tulevat tapahtumat ({upcomingItems.length})</span>
+                  <ChevronDown className={`h-5 w-5 transition-transform ${isUpcomingOpen ? "rotate-180" : ""}`} />
+                </button>
+                {isUpcomingOpen && visibleUpcoming.map((item) => (
+                    <TimelineCard
+                      key={item.id}
+                      item={item}
+                      onClick={() => {
+                        if (item.url) window.open(item.url, "_blank", "noopener,noreferrer");
+                        onSelect?.(item);
+                      }}
+                    />
+                  ))}
               </div>
             )}
 

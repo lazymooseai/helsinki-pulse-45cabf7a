@@ -71,10 +71,16 @@ const VENUE_CAPACITY: Record<string, number> = {
 
 const TARGET_TEXT_QUERIES = [
   "Helsingin Kaupunginteatteri",
+  "Arena-näyttämö",
+  "Hildur",
   "Suomen kansallisooppera",
+  "Suomen kansallisooppera ja -baletti",
+  "Kansallisooppera",
+  "Ooppera",
   "Musiikkitalo",
   "Helsingin Jäähalli",
   "G Livelab",
+  "G Live Lab",
   "On the Rocks",
 ];
 
@@ -139,9 +145,12 @@ const IMPORTANT_PATTERNS = [
   /\bhkt\b/i,
   /suuri näyttämö/i,
   /suomen kansallisooppera/i,
+  /suomen kansallisooppera ja -baletti/i,
   /kansallisooppera/i,
   /\booppera\b/i,
   /musiikkitalo/i,
+  /g livelab/i,
+  /on the rocks/i,
   /tavastia/i,
   /kulttuuritalo/i,
   /bolt arena/i,
@@ -187,11 +196,15 @@ function fmtTime(iso?: string): string | undefined {
   return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
 }
 
-function todayAtSameLocalClock(iso: string, now: Date): string {
+function dateAtSameLocalClock(iso: string, date: Date): string {
   const src = new Date(iso);
-  const d = new Date(now);
+  const d = new Date(date);
   d.setHours(src.getHours(), src.getMinutes(), 0, 0);
   return d.toISOString();
+}
+
+function todayAtSameLocalClock(iso: string, now: Date): string {
+  return dateAtSameLocalClock(iso, now);
 }
 
 function endsInMinutes(endIso?: string, startIso?: string): number {
@@ -222,7 +235,7 @@ async function fetchLinkedPage(params: URLSearchParams): Promise<LinkedEvent[]> 
   }
 }
 
-const CACHE_KEY = "linkedEventsCache.v1";
+const CACHE_KEY = "linkedEventsCache.v2";
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1h
 
 function readCache(): EventInfo[] | null {
@@ -300,9 +313,21 @@ export async function fetchLinkedEvents(): Promise<EventInfo[]> {
 
     if (isNoise(name, venue)) continue;
 
-    const displayStartIso = startMs < todayStart.getTime() && endMs >= todayStart.getTime()
+    const startDay = new Date(startMs);
+    startDay.setHours(0, 0, 0, 0);
+    const isMultiDayImportant = endMs - startMs > 8 * 3600_000 && isImportantVenue(name, venue);
+    const isTodayStartedEarlier = startMs < todayStart.getTime() && endMs >= todayStart.getTime();
+    const displayStartIso = isTodayStartedEarlier
       ? todayAtSameLocalClock(ev.start_time, now)
       : ev.start_time;
+
+    const displayEndIso = (() => {
+      if (!ev.end_time) return ev.end_time;
+      if (isTodayStartedEarlier || isMultiDayImportant) {
+        return dateAtSameLocalClock(ev.end_time, new Date(displayStartIso || ev.start_time));
+      }
+      return ev.end_time;
+    })();
 
     // Dedupe: sama nimi + alkamispaiva
     const dayKey = new Date(displayStartIso || ev.start_time).toISOString().slice(0, 10);
@@ -326,7 +351,7 @@ export async function fetchLinkedEvents(): Promise<EventInfo[]> {
       demandLevel: level,
       startTime: fmtTime(displayStartIso || ev.start_time),
       startIso: displayStartIso || ev.start_time,
-      endTime: fmtTime(ev.end_time),
+      endTime: fmtTime(displayEndIso),
       capacity,
       availabilityNote: pickName(ev.short_description as { fi?: string }) || undefined,
       infoUrl: ev.info_url?.fi || undefined,
