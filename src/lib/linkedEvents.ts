@@ -196,11 +196,15 @@ function fmtTime(iso?: string): string | undefined {
   return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
 }
 
-function todayAtSameLocalClock(iso: string, now: Date): string {
+function dateAtSameLocalClock(iso: string, date: Date): string {
   const src = new Date(iso);
-  const d = new Date(now);
+  const d = new Date(date);
   d.setHours(src.getHours(), src.getMinutes(), 0, 0);
   return d.toISOString();
+}
+
+function todayAtSameLocalClock(iso: string, now: Date): string {
+  return dateAtSameLocalClock(iso, now);
 }
 
 function endsInMinutes(endIso?: string, startIso?: string): number {
@@ -231,7 +235,7 @@ async function fetchLinkedPage(params: URLSearchParams): Promise<LinkedEvent[]> 
   }
 }
 
-const CACHE_KEY = "linkedEventsCache.v1";
+const CACHE_KEY = "linkedEventsCache.v2";
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1h
 
 function readCache(): EventInfo[] | null {
