@@ -197,8 +197,17 @@ export async function fetchLiveTrains(station: TrainStation = "HKI"): Promise<Tr
       train.trainCategory === "Commuter" &&
       (train.commuterLineID === "I" || train.commuterLineID === "P");
 
-    // Hyväksy kaukojunat aina, lentokenttäjunat vain ruuhka-aikoina
-    if (train.trainCategory !== "Long-distance" && !(isAirport && isCommuterRushHour())) {
+    // Z-juna (HKI–Lahti–Kouvola) on commuter, mutta käytännössä kaukojuna:
+    // matkustajat tulevat Kouvolasta/Lahdesta ja tarvitsevat usein taksin.
+    const isLahtiKouvola =
+      train.trainCategory === "Commuter" && train.commuterLineID === "Z";
+
+    // Hyväksy kaukojunat aina, Z-juna aina, lentokenttäjunat vain ruuhka-aikoina
+    if (
+      train.trainCategory !== "Long-distance" &&
+      !isLahtiKouvola &&
+      !(isAirport && isCommuterRushHour())
+    ) {
       continue;
     }
 
@@ -254,9 +263,13 @@ export async function fetchLiveTrains(station: TrainStation = "HKI"): Promise<Tr
       ":" +
       estimate.getMinutes().toString().padStart(2, "0");
 
-    // Lentokenttäjunille korvaa origin-teksti selkeämmäksi
+    // Lentokenttäjunille korvaa origin-teksti selkeämmäksi.
+    // Z-junalle näytetään aina "Kouvola" (päätelähtöasema), vaikka juna
+    // olisi otettu kyytiin Lahdesta tai välipysäkiltä.
     const origin = isAirport
       ? "Lentoasema"
+      : isLahtiKouvola
+      ? "Kouvola"
       : getOriginStation(train.timeTableRows);
 
     results.push({
