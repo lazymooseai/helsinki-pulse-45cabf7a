@@ -683,19 +683,23 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
             {/* TULEVAT PAIVAT */}
             {upcomingItems.length > 0 && (
               <div className="flex flex-col gap-2">
-                <h3 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/80 px-1 pt-1 border-t border-border/40">
-                  Myohemmin / tulevat ({upcomingItems.length})
-                </h3>
-                {visibleUpcoming.map((item) => (
-                  <TimelineCard
-                    key={item.id}
-                    item={item}
-                    onClick={() => {
-                      if (item.url) window.open(item.url, "_blank", "noopener,noreferrer");
-                      onSelect?.(item);
-                    }}
-                  />
-                ))}
+                <button
+                  onClick={() => setShowUpcoming((prev) => ({ ...prev, [activeCategory]: !prev[activeCategory] }))}
+                  className="w-full rounded-xl border border-border bg-muted/60 px-4 py-3 flex items-center justify-between text-sm font-black uppercase tracking-wider text-primary active:scale-[0.98]"
+                >
+                  <span>Tulevat tapahtumat ({upcomingItems.length})</span>
+                  <ChevronDown className={`h-5 w-5 transition-transform ${isUpcomingOpen ? "rotate-180" : ""}`} />
+                </button>
+                {isUpcomingOpen && visibleUpcoming.map((item) => (
+                    <TimelineCard
+                      key={item.id}
+                      item={item}
+                      onClick={() => {
+                        if (item.url) window.open(item.url, "_blank", "noopener,noreferrer");
+                        onSelect?.(item);
+                      }}
+                    />
+                  ))}
               </div>
             )}
 
