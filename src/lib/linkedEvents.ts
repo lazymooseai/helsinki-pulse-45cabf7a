@@ -71,17 +71,8 @@ const VENUE_CAPACITY: Record<string, number> = {
 
 const TARGET_TEXT_QUERIES = [
   "Helsingin Kaupunginteatteri",
-  "HKT",
-  "Suuri näyttämö",
   "Suomen kansallisooppera",
-  "ooppera",
   "Musiikkitalo",
-  "Tavastia",
-  "Kulttuuritalo",
-  "Savoy-teatteri",
-  "Tanssin talo",
-  "Bolt Arena",
-  "Olympiastadion",
   "Helsingin Jäähalli",
 ];
 
@@ -212,16 +203,42 @@ function endsInMinutes(endIso?: string, startIso?: string): number {
 }
 
 async function fetchLinkedPage(params: URLSearchParams): Promise<LinkedEvent[]> {
-  const res = await fetch(`https://api.hel.fi/linkedevents/v1/event/?${params}`, {
-    headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!res.ok) {
-    console.warn("LinkedEvents haku epaonnistui:", res.status);
+  try {
+    const res = await fetch(`https://api.hel.fi/linkedevents/v1/event/?${params}`, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!res.ok) {
+      console.warn("LinkedEvents haku epaonnistui:", res.status);
+      return [];
+    }
+    const json = (await res.json()) as LinkedResponse;
+    return json.data ?? [];
+  } catch (err) {
+    console.warn("LinkedEvents pyynto epaonnistui:", err);
     return [];
   }
-  const json = (await res.json()) as LinkedResponse;
-  return json.data ?? [];
+}
+
+const CACHE_KEY = "linkedEventsCache.v1";
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1h
+
+function readCache(): EventInfo[] | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw) as { ts: number; data: EventInfo[] };
+    if (Date.now() - ts > CACHE_TTL_MS) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(data: EventInfo[]) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+  } catch { /* ignore quota */ }
 }
 
 /**
@@ -246,17 +263,20 @@ export async function fetchLinkedEvents(): Promise<EventInfo[]> {
     sort: "start_time",
   };
 
-  let raw: LinkedEvent[] = [];
-  try {
-    const requests = [
-      new URLSearchParams({ ...baseParams, keyword: KEYWORD_QUERY, page_size: "100" }),
-      ...TARGET_TEXT_QUERIES.map((text) => new URLSearchParams({ ...baseParams, text })),
-    ];
-    const pages = await Promise.all(requests.map(fetchLinkedPage));
-    raw = pages.flat();
-  } catch (err) {
-    console.warn("LinkedEvents poikkeus:", err);
-    return [];
+  const requests = [
+    new URLSearchParams({ ...baseParams, keyword: KEYWORD_QUERY, page_size: "100" }),
+    ...TARGET_TEXT_QUERIES.map((text) => new URLSearchParams({ ...baseParams, text })),
+  ];
+  const settled = await Promise.allSettled(requests.map(fetchLinkedPage));
+  const raw: LinkedEvent[] = settled.flatMap((r) =>
+    r.status === "fulfilled" ? r.value : [],
+  );
+  if (raw.length === 0) {
+    const cached = readCache();
+    if (cached && cached.length > 0) {
+      console.warn("LinkedEvents tyhja -> kaytetaan valimuistia", cached.length);
+      return cached;
+    }
   }
 
   const seenTitles = new Set<string>();
@@ -319,5 +339,7 @@ export async function fetchLinkedEvents(): Promise<EventInfo[]> {
   });
 
   // Rajoita kohtuulliseen kokoon
-  return out.slice(0, 60);
+  const result = out.slice(0, 60);
+  if (result.length > 0) writeCache(result);
+  return result;
 }
