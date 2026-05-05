@@ -18,6 +18,7 @@ import {
   Trophy,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Clock,
   Plus,
   ExternalLink,
@@ -81,6 +82,17 @@ const ITEM_ICON: Record<TimelineItem["raw"]["kind"], React.ReactNode> = {
 };
 
 const HARD_LIMIT_PER_TAB = 5;
+
+function isEventLike(item: TimelineItem): boolean {
+  return item.raw.kind === "event" || item.raw.kind === "sports" || item.raw.kind === "political";
+}
+
+function isTodayUntilMidnight(item: TimelineItem): boolean {
+  if (!isItemToday(item) || !isEventLike(item)) return false;
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  return item.startMs > -24 * 60 * 60_000 && Date.now() <= end.getTime();
+}
 
 /**
  * Pieni popover-pohjainen tolpan korjausnappi. Käyttäjä voi valita
@@ -369,6 +381,13 @@ const EventsTimeline = ({ onSelect, onAddEvent }: EventsTimelineProps) => {
   const [tabIdx, setTabIdx] = useState(0);
   // Per-tab "nayta kaikki" -laajennus (id = "<cat>:expanded")
   const [expanded, setExpanded] = useState<Record<EventCategory, boolean>>({
+    asemat: false,
+    kulttuuri: false,
+    urheilu: false,
+    politiikka: false,
+    muut: false,
+  });
+  const [showUpcoming, setShowUpcoming] = useState<Record<EventCategory, boolean>>({
     asemat: false,
     kulttuuri: false,
     urheilu: false,
