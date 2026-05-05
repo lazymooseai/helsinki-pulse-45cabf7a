@@ -132,8 +132,10 @@ function isActiveTodayOrSoon(start?: string, end?: string): boolean {
   const now = Date.now();
   const s = new Date(start).getTime();
   const e = end ? new Date(end).getTime() : s + 3 * 60 * 60 * 1000;
-  // Aktiivinen 4h ennen alkua → loppuun asti
-  return now >= s - 4 * 60 * 60 * 1000 && now <= e;
+  // Pidetään 7 pv ikkunan tulevat tapahtumat näkyvissä (Tulevat-listaa varten),
+  // ja jätetään pois vain jo päättyneet.
+  const horizon = now + 7 * 24 * 60 * 60 * 1000;
+  return e >= now && s <= horizon;
 }
 
 // ---------------------------------------------------------------------------
@@ -207,6 +209,8 @@ export async function fetchSportsEvents(): Promise<SportsEvent[]> {
           awayTeam: teams.away,
           venue,
           startTime: fmtHHMM(ev.start_time),
+          startIso: ev.start_time,
+          endIso: ev.end_time,
           expectedAttendance: attendance,
           capacity: cap,
           league,
