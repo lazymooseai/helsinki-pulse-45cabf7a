@@ -26,3 +26,4 @@
 - [Real-Time Refresh](mem://features/real-time-refresh) — Per-source refresh intervals and visible countdown
 - [Flights & Sports](mem://features/flights-sports) — HEL-Vantaa flight arrivals + sports events
 - [Feature Feedback](mem://features/feature-feedback) — Per-section suggestion buttons + floating lightbulb writing to feature_feedback table
+- [Venue → Tolppa mapping](mem://features/tolppa-mapping) — Käyttäjän vahvistamat venue-kohtaiset taksitolpat ja poikkeukset
