@@ -71,10 +71,16 @@ const VENUE_CAPACITY: Record<string, number> = {
 
 const TARGET_TEXT_QUERIES = [
   "Helsingin Kaupunginteatteri",
+  "Arena-näyttämö",
+  "Hildur",
   "Suomen kansallisooppera",
+  "Suomen kansallisooppera ja -baletti",
+  "Kansallisooppera",
+  "Ooppera",
   "Musiikkitalo",
   "Helsingin Jäähalli",
   "G Livelab",
+  "G Live Lab",
   "On the Rocks",
 ];
 
@@ -139,9 +145,12 @@ const IMPORTANT_PATTERNS = [
   /\bhkt\b/i,
   /suuri näyttämö/i,
   /suomen kansallisooppera/i,
+  /suomen kansallisooppera ja -baletti/i,
   /kansallisooppera/i,
   /\booppera\b/i,
   /musiikkitalo/i,
+  /g livelab/i,
+  /on the rocks/i,
   /tavastia/i,
   /kulttuuritalo/i,
   /bolt arena/i,
