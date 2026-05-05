@@ -15,6 +15,8 @@ type: feature
 Lähde: käyttäjän toimittama `Tolpat_ja_ruudut.txt`.
 - 4 KÄMP, 6 SENAATINTORI/Aleksanterinkatu (Säätytalo), 11 RUOHOLAHTI
 - 14 RAUTATIENTORI, 19 SEASIDE/Finlandia
+- On The Rocks → **14 Rautatientori**.
+- G Livelab / G Live Lab → **17 Bulevardi**.
 - 21 EROTTAJA (Savoy), 27 LINNANMÄKI (HKT-alue)
 - 25 KALASATAMA (Teurastamo, Tukkutori, Suvilahti)
 - 26 KALLIO/STURENKATU (Kulttuuritalo, Konepaja Vallila)
