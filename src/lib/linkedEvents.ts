@@ -323,8 +323,9 @@ export async function fetchLinkedEvents(): Promise<EventInfo[]> {
 
     const displayEndIso = (() => {
       if (!ev.end_time) return ev.end_time;
-      if (isTodayStartedEarlier) return todayAtSameLocalClock(ev.end_time, now);
-      if (isMultiDayImportant) return dateAtSameLocalClock(ev.end_time, startDay);
+      if (isTodayStartedEarlier || isMultiDayImportant) {
+        return dateAtSameLocalClock(ev.end_time, new Date(displayStartIso || ev.start_time));
+      }
       return ev.end_time;
     })();
 
