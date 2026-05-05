@@ -227,7 +227,9 @@ export async function fetchLiveTrains(station: TrainStation = "HKI"): Promise<Tr
       new Date().toLocaleString("en-US", { timeZone: "Europe/Helsinki", hour: "2-digit", hour12: false })
     );
     const isNight = hkiHour >= 22 || hkiHour < 6;
-    const windowMs = (isNight ? 180 : 60) * 60 * 1000;
+    // Laajennettu paivaikkuna 120 min jotta kaukojunat (esim. Tampere)
+    // nakyvat ajoissa, kun kuski tarvitsee ennakkotietoa.
+    const windowMs = (isNight ? 240 : 120) * 60 * 1000;
     if (arrivalEpoch < now - 2 * 60 * 1000) continue;
     if (arrivalEpoch > now + windowMs) continue;
 
@@ -278,9 +280,11 @@ export async function fetchLiveTrains(station: TrainStation = "HKI"): Promise<Tr
   // sitten taytetaan max 1 lentoasemajunalla -> yhteensa max 5.
   const longDistance = results.filter((t) => t.origin !== "Lentoasema");
   const airport = results.filter((t) => t.origin === "Lentoasema");
-  const topTrains = [...longDistance.slice(0, 4), ...airport.slice(0, 1)]
+  // Otetaan jopa 12 kaukojunaa + 2 lentokenttajunaa, jotta "Nayta 5 seuraavaa"
+  // -nappi paljastaa oikeasti lisaa junia (Tampere, Turku, Oulu jne.).
+  const topTrains = [...longDistance.slice(0, 12), ...airport.slice(0, 2)]
     .sort(byTime)
-    .slice(0, 5);
+    .slice(0, 14);
 
   // Hae compositions top-3 lähimmälle junalle
   const top3 = topTrains.slice(0, 3);
