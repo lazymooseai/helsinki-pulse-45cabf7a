@@ -313,13 +313,20 @@ export async function fetchLinkedEvents(): Promise<EventInfo[]> {
 
     if (isNoise(name, venue)) continue;
 
+    const startDay = new Date(startMs);
+    startDay.setHours(0, 0, 0, 0);
+    const isMultiDayImportant = endMs - startMs > 8 * 3600_000 && isImportantVenue(name, venue);
     const isTodayStartedEarlier = startMs < todayStart.getTime() && endMs >= todayStart.getTime();
     const displayStartIso = isTodayStartedEarlier
       ? todayAtSameLocalClock(ev.start_time, now)
       : ev.start_time;
-    const displayEndIso = isTodayStartedEarlier && ev.end_time
-      ? todayAtSameLocalClock(ev.end_time, now)
-      : ev.end_time;
+
+    const displayEndIso = (() => {
+      if (!ev.end_time) return ev.end_time;
+      if (isTodayStartedEarlier) return todayAtSameLocalClock(ev.end_time, now);
+      if (isMultiDayImportant) return dateAtSameLocalClock(ev.end_time, startDay);
+      return ev.end_time;
+    })();
 
     // Dedupe: sama nimi + alkamispaiva
     const dayKey = new Date(displayStartIso || ev.start_time).toISOString().slice(0, 10);
