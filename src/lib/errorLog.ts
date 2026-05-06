@@ -38,6 +38,10 @@ function shouldIgnore(args: unknown[]): boolean {
   );
 }
 
+function shouldIgnoreEntry(entry: LogEntry): boolean {
+  return shouldIgnore([entry.message, entry.detail ?? ""]);
+}
+
 function notify() {
   try {
     window.dispatchEvent(new CustomEvent("errorlog:update"));
@@ -104,7 +108,7 @@ export function installErrorLog() {
 }
 
 export function getErrorLog(): LogEntry[] {
-  return buffer.slice();
+  return buffer.filter((entry) => !shouldIgnoreEntry(entry)).slice();
 }
 
 export function clearErrorLog() {
