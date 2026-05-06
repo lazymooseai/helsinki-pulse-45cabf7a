@@ -13,6 +13,7 @@
 
 import type { SportsEvent } from "./types";
 import { isLowTaxiDemandEvent } from "./eventDemandFilters";
+import { supabase } from "@/integrations/supabase/client";
 
 // ---------------------------------------------------------------------------
 // Areenoiden kapasiteetit
@@ -168,17 +169,12 @@ export async function fetchSportsEvents(): Promise<SportsEvent[]> {
       ),
     ];
 
-    const pages = await Promise.all(searches.map(async (params) => {
-      const res = await fetch(`https://api.hel.fi/linkedevents/v1/event/?${params}`, {
-        headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(8000),
-      });
-      if (!res.ok) return [] as LinkedEvent[];
-      const json = await res.json();
-      return (json.data ?? []) as LinkedEvent[];
-    }));
+    const { data, error } = await supabase.functions.invoke("fetch-linked-events", {
+      body: { queries: searches.map((params) => Object.fromEntries(params.entries())) },
+    });
+    if (error) throw error;
 
-    const list = pages.flat();
+    const list = ((data as { data?: LinkedEvent[] } | null)?.data ?? []);
     const seen = new Set<string>();
 
       for (const ev of list) {
@@ -220,7 +216,9 @@ export async function fetchSportsEvents(): Promise<SportsEvent[]> {
         });
       }
   } catch (err) {
-    console.warn("LinkedEvents urheiluhaku epaonnistui:", err);
+    if (!(err instanceof Error && /aborted|abort/i.test(err.message))) {
+      console.warn("LinkedEvents urheiluhaku epaonnistui:", err);
+    }
   }
 
   // Jos APIsta löytyi ottelu(ita), palautetaan ne

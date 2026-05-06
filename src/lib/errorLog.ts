@@ -33,8 +33,13 @@ function shouldIgnore(args: unknown[]): boolean {
     text.includes("React Router Future Flag Warning") ||
     text.includes("Unknown message type: RESET_BLANK_CHECK") ||
     text.includes("Function components cannot be given refs") ||
+    (text.includes("LinkedEvents") && /Fetch is aborted|AbortError|aborted/i.test(text)) ||
     text.includes("Download the React DevTools")
   );
+}
+
+function shouldIgnoreEntry(entry: LogEntry): boolean {
+  return shouldIgnore([entry.message, entry.detail ?? ""]);
 }
 
 function notify() {
@@ -103,7 +108,7 @@ export function installErrorLog() {
 }
 
 export function getErrorLog(): LogEntry[] {
-  return buffer.slice();
+  return buffer.filter((entry) => !shouldIgnoreEntry(entry)).slice();
 }
 
 export function clearErrorLog() {
