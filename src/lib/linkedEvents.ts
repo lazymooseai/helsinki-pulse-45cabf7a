@@ -13,6 +13,7 @@
 
 import { EventInfo } from "./types";
 import { isLowTaxiDemandEvent } from "./eventDemandFilters";
+import { supabase } from "@/integrations/supabase/client";
 
 interface LinkedLocation {
   name?: { fi?: string; sv?: string; en?: string };
@@ -235,6 +236,17 @@ async function fetchLinkedPage(params: URLSearchParams): Promise<LinkedEvent[]> 
   }
 }
 
+async function fetchLinkedEventsViaProxy(requests: URLSearchParams[]): Promise<LinkedEvent[]> {
+  const queries = requests.map((params) => Object.fromEntries(params.entries()));
+  const { data, error } = await supabase.functions.invoke("fetch-linked-events", {
+    body: { queries },
+  });
+
+  if (error) throw error;
+  const events = (data as { data?: LinkedEvent[] } | null)?.data;
+  return Array.isArray(events) ? events : [];
+}
+
 const CACHE_KEY = "linkedEventsCache.v2";
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1h
 
@@ -282,10 +294,13 @@ export async function fetchLinkedEvents(): Promise<EventInfo[]> {
     new URLSearchParams({ ...baseParams, keyword: KEYWORD_QUERY, page_size: "100" }),
     ...TARGET_TEXT_QUERIES.map((text) => new URLSearchParams({ ...baseParams, text })),
   ];
-  const settled = await Promise.allSettled(requests.map(fetchLinkedPage));
-  const raw: LinkedEvent[] = settled.flatMap((r) =>
-    r.status === "fulfilled" ? r.value : [],
-  );
+  const raw: LinkedEvent[] = await fetchLinkedEventsViaProxy(requests).catch(async (err) => {
+    if (!(err instanceof Error && /aborted|abort/i.test(err.message))) {
+      console.warn("LinkedEvents proxy epaonnistui, kokeillaan suoraa hakua:", err);
+    }
+    const settled = await Promise.allSettled(requests.slice(0, 4).map(fetchLinkedPage));
+    return settled.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
+  });
   if (raw.length === 0) {
     const cached = readCache();
     if (cached && cached.length > 0) {
