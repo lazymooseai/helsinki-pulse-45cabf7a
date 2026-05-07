@@ -65,11 +65,30 @@ Deno.serve(async (req) => {
           "",
         endValidity: b.endValidity,
       }))
-      .filter((b) => b.text.length > 0)
-      .slice(0, 20);
+      .filter((b) => b.text.length > 0);
+
+    // Deduplikoi sama teksti (VR julkaisee usein saman tiedotteen jokaiselle
+    // junalle erikseen). Pidetään tekstistä yksi rivi ja kerätään junanumerot.
+    const byText = new Map<string, { id: string; trainNumber?: number; stations: string[]; text: string; endValidity?: string; trainNumbers: number[] }>();
+    for (const it of items) {
+      const ex = byText.get(it.text);
+      if (ex) {
+        if (it.trainNumber) ex.trainNumbers.push(it.trainNumber);
+      } else {
+        byText.set(it.text, { ...it, trainNumbers: it.trainNumber ? [it.trainNumber] : [] });
+      }
+    }
+    const deduped = Array.from(byText.values()).slice(0, 10).map((b) => ({
+      id: b.id,
+      trainNumber: b.trainNumbers.length === 1 ? b.trainNumbers[0] : undefined,
+      trainNumbers: b.trainNumbers,
+      stations: b.stations,
+      text: b.text,
+      endValidity: b.endValidity,
+    }));
 
     return new Response(
-      JSON.stringify({ bulletins: items, count: items.length, timestamp: new Date().toISOString() }),
+      JSON.stringify({ bulletins: deduped, count: deduped.length, timestamp: new Date().toISOString() }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
