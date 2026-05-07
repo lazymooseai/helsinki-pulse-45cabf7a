@@ -7,6 +7,7 @@ export interface TrainBulletin {
   trainNumbers?: number[];
   stations: string[];
   text: string;
+  startValidity?: string;
   endValidity?: string;
 }
 

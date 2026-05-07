@@ -1,4 +1,4 @@
-import { AlertTriangle, TrainFront, Plane, Ship, Bus, ExternalLink, Megaphone } from "lucide-react";
+import { AlertTriangle, TrainFront, Plane, Ship, Bus, ExternalLink, Megaphone, Clock } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { useHslAlerts } from "@/lib/hsl";
 import { useTrainBulletins } from "@/lib/trainBulletins";
@@ -17,14 +17,51 @@ const DisruptionsCard = () => {
   const { alerts } = useHslAlerts(60_000);
   const { bulletins } = useTrainBulletins(120_000);
 
-  const hslItems = alerts.map((a) => ({
-    key: `hsl-${a.id}`,
-    icon: <Bus className="h-5 w-5" />,
-    label: a.isTransitCritical ? "HSL HÄIRIÖ" : "HSL VAROITUS",
-    text: a.headerText || a.descriptionText,
-    level: a.isTransitCritical ? ("red" as const) : ("amber" as const),
-    url: "https://www.hsl.fi/liikenne/poikkeusinfo",
-  }));
+  const fmtClock = (ms: number) => {
+    const d = new Date(ms);
+    return new Intl.DateTimeFormat("fi-FI", {
+      timeZone: "Europe/Helsinki",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(d);
+  };
+
+  const fmtAgo = (ms: number) => {
+    const diffMin = Math.round((Date.now() - ms) / 60000);
+    if (diffMin < 1) return "juuri nyt";
+    if (diffMin < 60) return `${diffMin} min sitten`;
+    const h = Math.floor(diffMin / 60);
+    const m = diffMin % 60;
+    return m === 0 ? `${h} h sitten` : `${h} h ${m} min sitten`;
+  };
+
+  const fmtRemaining = (ms: number) => {
+    const diffMin = Math.round((ms - Date.now()) / 60000);
+    if (diffMin <= 0) return null;
+    if (diffMin < 60) return `${diffMin} min`;
+    const h = Math.floor(diffMin / 60);
+    const m = diffMin % 60;
+    if (h >= 24) {
+      const days = Math.floor(h / 24);
+      return `${days} pv`;
+    }
+    return m === 0 ? `${h} h` : `${h} h ${m} min`;
+  };
+
+  const hslItems = alerts.map((a) => {
+    const startMs = a.effectiveStartDate ? a.effectiveStartDate * 1000 : 0;
+    const endMs = a.effectiveEndDate ? a.effectiveEndDate * 1000 : 0;
+    return {
+      key: `hsl-${a.id}`,
+      icon: <Bus className="h-5 w-5" />,
+      label: a.isTransitCritical ? "HSL HÄIRIÖ" : "HSL VAROITUS",
+      text: a.headerText || a.descriptionText,
+      level: a.isTransitCritical ? ("red" as const) : ("amber" as const),
+      url: "https://www.hsl.fi/liikenne/poikkeusinfo",
+      issuedAtMs: startMs && startMs <= Date.now() ? startMs : 0,
+      validUntilMs: endMs || 0,
+    };
+  });
 
   const trainItems = state.trainDelays
     .filter((t) => t.cancelled || t.delayMinutes >= 10)
@@ -38,16 +75,24 @@ const DisruptionsCard = () => {
         : `${t.line} ${t.origin} +${t.delayMinutes} min (saap. ${t.arrivalTime})`,
       level: t.cancelled || t.delayMinutes >= 30 ? ("red" as const) : ("amber" as const),
       url: "https://junalahdot.fi/?station=HKI",
+      issuedAtMs: 0,
+      validUntilMs: 0,
     }));
 
-  const bulletinItems = bulletins.slice(0, 5).map((b) => ({
-    key: `bulletin-${b.id}`,
-    icon: <Megaphone className="h-5 w-5" />,
-    label: "VR TIEDOTE",
-    text: b.trainNumber ? `Juna ${b.trainNumber}: ${b.text}` : b.text,
-    level: "amber" as const,
-    url: "https://www.vr.fi/asiakaspalvelu/poikkeustilanteet",
-  }));
+  const bulletinItems = bulletins.slice(0, 5).map((b) => {
+    const startMs = b.startValidity ? new Date(b.startValidity).getTime() : 0;
+    const endMs = b.endValidity ? new Date(b.endValidity).getTime() : 0;
+    return {
+      key: `bulletin-${b.id}`,
+      icon: <Megaphone className="h-5 w-5" />,
+      label: "VR TIEDOTE",
+      text: b.trainNumber ? `Juna ${b.trainNumber}: ${b.text}` : b.text,
+      level: "amber" as const,
+      url: "https://www.vr.fi/asiakaspalvelu/poikkeustilanteet",
+      issuedAtMs: startMs && startMs <= Date.now() ? startMs : 0,
+      validUntilMs: endMs,
+    };
+  });
 
   const flightItems = state.flights
     .filter((f) => f.delayMinutes >= 30)
@@ -59,6 +104,8 @@ const DisruptionsCard = () => {
       text: `${f.flightNumber} ${f.origin} +${f.delayMinutes} min (saap. ${f.estimatedTime})`,
       level: f.delayMinutes >= 60 ? ("red" as const) : ("amber" as const),
       url: `https://www.finavia.fi/fi/lentoasemat/helsinki-vantaa/lennot?tab=arr&flight=${encodeURIComponent(f.flightNumber)}`,
+      issuedAtMs: 0,
+      validUntilMs: 0,
     }));
 
   // Laivahäiriö: ETA tunnin päässä mutta useita aluksia samaan terminaaliin
@@ -73,6 +120,8 @@ const DisruptionsCard = () => {
       text: `${s.ship} → ${s.harbor} ${s.eta} • ~${(s.estimatedPax ?? s.pax).toLocaleString("fi-FI")} hlö`,
       level: "amber" as const,
       url: "https://averio.fi/laivat",
+      issuedAtMs: 0,
+      validUntilMs: 0,
     }));
 
   const items = [...hslItems, ...bulletinItems, ...trainItems, ...flightItems, ...shipItems];
@@ -131,6 +180,21 @@ const DisruptionsCard = () => {
                 <p className="text-base font-bold text-foreground leading-snug">
                   {it.text}
                 </p>
+                {(it.issuedAtMs > 0 || (it.validUntilMs && fmtRemaining(it.validUntilMs))) && (
+                  <p className="mt-1 flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    {it.issuedAtMs > 0 && (
+                      <span>
+                        klo {fmtClock(it.issuedAtMs)} • {fmtAgo(it.issuedAtMs)}
+                      </span>
+                    )}
+                    {it.validUntilMs && fmtRemaining(it.validUntilMs) && (
+                      <span className="ml-auto">
+                        voimassa vielä {fmtRemaining(it.validUntilMs)}
+                      </span>
+                    )}
+                  </p>
+                )}
               </div>
               <ExternalLink className="h-4 w-4 text-muted-foreground/50 shrink-0 mt-1" />
             </button>

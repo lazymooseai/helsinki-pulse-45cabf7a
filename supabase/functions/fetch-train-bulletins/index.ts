@@ -63,17 +63,22 @@ Deno.serve(async (req) => {
           b.audio?.text?.fi ||
           b.video?.text?.en ||
           "",
+        startValidity: b.startValidity,
         endValidity: b.endValidity,
       }))
       .filter((b) => b.text.length > 0);
 
     // Deduplikoi sama teksti (VR julkaisee usein saman tiedotteen jokaiselle
     // junalle erikseen). Pidetään tekstistä yksi rivi ja kerätään junanumerot.
-    const byText = new Map<string, { id: string; trainNumber?: number; stations: string[]; text: string; endValidity?: string; trainNumbers: number[] }>();
+    const byText = new Map<string, { id: string; trainNumber?: number; stations: string[]; text: string; startValidity?: string; endValidity?: string; trainNumbers: number[] }>();
     for (const it of items) {
       const ex = byText.get(it.text);
       if (ex) {
         if (it.trainNumber) ex.trainNumbers.push(it.trainNumber);
+        // Käytetään aikaisinta startValidityä
+        if (it.startValidity && (!ex.startValidity || new Date(it.startValidity) < new Date(ex.startValidity))) {
+          ex.startValidity = it.startValidity;
+        }
       } else {
         byText.set(it.text, { ...it, trainNumbers: it.trainNumber ? [it.trainNumber] : [] });
       }
@@ -84,6 +89,7 @@ Deno.serve(async (req) => {
       trainNumbers: b.trainNumbers,
       stations: b.stations,
       text: b.text,
+      startValidity: b.startValidity,
       endValidity: b.endValidity,
     }));
 
