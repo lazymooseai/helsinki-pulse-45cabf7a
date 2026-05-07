@@ -16,7 +16,7 @@ export function useDemandFeedback() {
     });
 
     const ch = supabase
-      .channel("demand-feedback-changes")
+      .channel(`demand-feedback-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "demand_feedback" },
