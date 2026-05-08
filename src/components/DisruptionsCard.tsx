@@ -48,7 +48,14 @@ const DisruptionsCard = () => {
     return m === 0 ? `${h} h` : `${h} h ${m} min`;
   };
 
-  const hslItems = alerts.map((a) => {
+  const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+  const nowMs = Date.now();
+  const hslItems = alerts
+    .filter((a) => {
+      const startMs = a.effectiveStartDate ? a.effectiveStartDate * 1000 : 0;
+      return startMs === 0 || nowMs - startMs <= TWO_HOURS_MS;
+    })
+    .map((a) => {
     const startMs = a.effectiveStartDate ? a.effectiveStartDate * 1000 : 0;
     const endMs = a.effectiveEndDate ? a.effectiveEndDate * 1000 : 0;
     return {
@@ -79,7 +86,14 @@ const DisruptionsCard = () => {
       validUntilMs: 0,
     }));
 
-  const bulletinItems = bulletins.slice(0, 5).map((b) => {
+  const bulletinItems = bulletins
+    .filter((b) => {
+      const startMs = b.startValidity ? new Date(b.startValidity).getTime() : 0;
+      // Näytetään vain jos tiedote on julkaistu enintään 2 h sitten
+      return startMs > 0 && nowMs - startMs <= TWO_HOURS_MS;
+    })
+    .slice(0, 5)
+    .map((b) => {
     const startMs = b.startValidity ? new Date(b.startValidity).getTime() : 0;
     const endMs = b.endValidity ? new Date(b.endValidity).getTime() : 0;
     return {
