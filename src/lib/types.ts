@@ -3,7 +3,19 @@
  *
  * Kaikki jaetut TypeScript-tyypit Helsinki Taxi Pulse -sovellukselle.
  * Muutokset tahan tiedostoon vaikuttavat koko sovellukseen.
+ *
+ * Muutoshistoria:
+ * - BUG-FIX: Lisatty TrainDelay.trainCategory (optionaalinen) jotta scoring.ts
+ *   voi suodattaa kaukojunat luotettavasti regexin sijaan. Digitraffic API
+ *   palauttaa kentan trainCategory ("Long-distance" | "Commuter" | "Cargo"),
+ *   ja fintraffic.ts pitaa paivittaa valittamaan tama eteenpain.
  */
+
+// ---------------------------------------------------------------------------
+// Junan kategorialuokitus (vastaa Digitraffic API:n trainCategory-kenttaa)
+// ---------------------------------------------------------------------------
+
+export type TrainCategory = "Long-distance" | "Commuter" | "Cargo";
 
 export interface TrainDelay {
   id: string;
@@ -11,9 +23,16 @@ export interface TrainDelay {
   origin: string;
   delayMinutes: number;
   arrivalTime: string;
-  capacity?: number;        // Istumapaikkamäärä: oikea (compositions) tai arvio (tyyppi)
-  capacitySource?: "real" | "estimate";  // "real" = Digitraffic, "estimate" = tyyppiarvio
-  cancelled?: boolean;       // Junaa ei aja - näytetään PERUTTU-tagilla
+  /**
+   * Junan kategoria Digitraffic-API:sta.
+   * Optionaalinen takautuvan yhteensopivuuden vuoksi, mutta kaikki uudet
+   * kayttotapaukset pitaisi paivittaa kayttamaan tata kentta.
+   *
+   * scoring.ts kayttaa tata kentta jos se on maaritelty; muussa tapauksessa
+   * putoaa varovaiseen IC-only -fallbackiin (joka jattaa Pendolinon ja muut
+   * kaukojunatyypit pois hylkayksen sijaan).
+   */
+  trainCategory?: TrainCategory;
 }
 
 export interface ShipArrival {
@@ -31,27 +50,26 @@ export interface EventInfo {
   venue: string;
   endsIn: number;         // Minuutteja paattymiseen
   soldOut: boolean;
-  demandTag?: string;     // Kuljettajalle nakyvä tagi, esim. "KORKEA KYSYNTA"
+  demandTag?: string;     // Kuljettajalle nakyva tagi, esim. "KORKEA KYSYNTA"
   demandLevel?: "red" | "amber" | "green";
   startTime?: string;     // HH:MM muodossa
   startIso?: string;      // Tay ISO-aika alkamisajalle (paivamaaran nayttoa varten)
   endTime?: string;       // HH:MM muodossa - paattymisaika (purkuaika)
-  capacity?: number;      // Venue-kapasiteetti (paikkamäärä)
-  estimatedAttendance?: number; // Arvio yleisömäärästä
+  capacity?: number;      // Venue-kapasiteetti (paikkamaara)
+  estimatedAttendance?: number; // Arvio yleisomaarasta
   loadFactor?: number;    // 0..1 - lipunmyyntiaste
   availabilityNote?: string; // Vapaa kuvaus tilanteesta tai AI-arvion peruste
-  infoUrl?: string;       // Ulkoinen lippu/info-URL (LinkedEvents info_url tms.)
 }
 
 export interface WeatherData {
   condition: "Rain" | "Clear" | "Snow";
   temp: number;           // Lampotila celsiuksina (pyoristetty)
-  rain: number;           // Sademäärä mm/h
+  rain: number;           // Sademaara mm/h
   showers: number;        // Sadekuurot mm/h
   snowfall: number;       // Lumisade mm/h
   windSpeed: number;      // Tuulennopeus m/s
   rainModeActive: boolean; // true kun sade+lumi > 1.0 mm/h
-  slipperyIndex: number;  // 0.0-1.0: liukkausindeksi (>= 0.6 = sairaala-signaali)
+  slipperyIndex?: number;  // 0.0-1.0: liukkausindeksi (>= 0.6 = sairaala-signaali)
 }
 
 export type AlertLevel = "none" | "high" | "jackpot";
@@ -86,12 +104,10 @@ export interface SportsEvent {
   awayTeam: string;
   venue: string;
   startTime: string;          // HH:MM
-  startIso?: string;          // Täysi ISO-aikaleima (jos saatavilla)
-  endIso?: string;
   expectedAttendance: number;
   capacity: number;
   league: string;             // "Liiga", "Veikkausliiga", "NHL preseason" jne.
-  endsIn: number;             // Min ennen päättymistä (negatiivinen jos jo loppunut)
+  endsIn: number;             // Min ennen paattymista (negatiivinen jos jo loppunut)
   demandTag: string;
   demandLevel: "red" | "amber" | "green";
 }
