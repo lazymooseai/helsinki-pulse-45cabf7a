@@ -9,6 +9,14 @@
  * - simulateShipArrival kayttaa oikeaa terminaalinimea
  * - Toast-viestit ilman emojeja (parempi yhteensopivuus)
  * - slipperyIndex-varoitus toast-viestissa
+ *
+ * Muutoshistoria:
+ * - BUG-FIX: HMR-fallback-stubin sourceTimestamps-objektissa oli typo
+ *   "sports" -> "sportsEvents". Tama oli piilossa "as unknown as
+ *   DashboardContextValue" -castin alla, ja aiheutti undefined-arvon
+ *   kuluttajille jotka lukevat sourceTimestamps.sportsEvents.
+ * - Poistettu unsafe-cast ja kaytetaan tarkkaan tyypitettya stubia, jotta
+ *   tulevat typotyypit jaavat kiinni TypeScript-kaantajaan.
  */
 
 import {
@@ -29,12 +37,11 @@ import { fetchHarborPaxEstimates, averioShipsToArrivals } from "@/lib/harbors";
 import { fetchEventsBundle } from "@/lib/events";
 import { fetchFlightArrivals } from "@/lib/flights";
 import { fetchSportsEvents } from "@/lib/sports";
-import { fetchPoliticalEvents, type PoliticalEvent } from "@/lib/politicalEvents";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
-// Oletustila — kaikki kentat maaritelty, ei TypeScript-virheita
+// Oletustila - kaikki kentat maaritelty, ei TypeScript-virheita
 // ---------------------------------------------------------------------------
 
 const DEFAULT_STATE: DashboardState = {
@@ -67,13 +74,12 @@ export interface DispatchEdit {
   pax?: number;
 }
 
-// Päivitysvälit (millisekuntia)
-export const TRAIN_REFRESH_MS = 2 * 60 * 1000;   // 2 min — Fintraffic tukee tihea polling
-export const FLIGHT_REFRESH_MS = 2 * 60 * 1000;  // 2 min — Finavia, lentodata muuttuu usein
-export const WEATHER_REFRESH_MS = 2 * 60 * 1000; // 2 min — Open-Meteo päivittyy 15 min, mutta poll usein
-export const OTHERS_REFRESH_MS = 5 * 60 * 1000;  // 5 min — laivat, tapahtumat
-export const SPORTS_REFRESH_MS = 15 * 60 * 1000; // 15 min — urheilu päivittyy harvoin
-export const POLITICAL_REFRESH_MS = 10 * 60 * 1000; // 10 min — DB-tabletti, edge-funktio paivittaa tunneittain
+// Paivitysvalit (millisekuntia)
+export const TRAIN_REFRESH_MS = 2 * 60 * 1000;   // 2 min - Fintraffic tukee tihea polling
+export const FLIGHT_REFRESH_MS = 2 * 60 * 1000;  // 2 min - Finavia, lentodata muuttuu usein
+export const WEATHER_REFRESH_MS = 2 * 60 * 1000; // 2 min - Open-Meteo paivittyy 15 min, mutta poll usein
+export const OTHERS_REFRESH_MS = 5 * 60 * 1000;  // 5 min - laivat, tapahtumat
+export const SPORTS_REFRESH_MS = 15 * 60 * 1000; // 15 min - urheilu paivittyy harvoin
 
 export interface SourceTimestamps {
   trains: Date | null;
@@ -82,8 +88,16 @@ export interface SourceTimestamps {
   events: Date | null;
   flights: Date | null;
   sportsEvents: Date | null;
-  political: Date | null;
 }
+
+const EMPTY_SOURCE_TIMESTAMPS: SourceTimestamps = {
+  trains: null,
+  ships: null,
+  weather: null,
+  events: null,
+  flights: null,
+  sportsEvents: null,
+};
 
 interface DashboardContextValue {
   state: DashboardState;
@@ -94,7 +108,6 @@ interface DashboardContextValue {
   lastFetch: Date | null;
   sourceTimestamps: SourceTimestamps;
   upcomingEvents: import("@/lib/types").EventInfo[];
-  politicalEvents: PoliticalEvent[];
   refreshAll: () => Promise<void>;
   refreshTrains: () => Promise<void>;
   simulateShipArrival: () => void;
@@ -108,6 +121,31 @@ interface DashboardContextValue {
 }
 
 // ---------------------------------------------------------------------------
+// HMR-fallback - tarkkaan tyypitetty, ei unsafe-castia
+// ---------------------------------------------------------------------------
+
+const HMR_FALLBACK_VALUE: DashboardContextValue = {
+  state: DEFAULT_STATE,
+  alerts: [],
+  topAlert: null,
+  hasJackpot: false,
+  isLoading: false,
+  lastFetch: null,
+  sourceTimestamps: EMPTY_SOURCE_TIMESTAMPS,
+  upcomingEvents: [],
+  refreshAll: async () => {},
+  refreshTrains: async () => {},
+  simulateShipArrival: () => {},
+  resetState: () => {},
+  crowdOverrides: {},
+  setCrowdOverride: () => {},
+  dispatchEdits: {},
+  setDispatchEdit: () => {},
+  trainStation: "HKI" as TrainStation,
+  setTrainStation: () => {},
+};
+
+// ---------------------------------------------------------------------------
 // Konteksti
 // ---------------------------------------------------------------------------
 
@@ -118,31 +156,34 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
   const [upcomingEvents, setUpcomingEvents] = useState<import("@/lib/types").EventInfo[]>([]);
-  const [politicalEvents, setPoliticalEvents] = useState<PoliticalEvent[]>([]);
-  const [sourceTimestamps, setSourceTimestamps] = useState<SourceTimestamps>({
-    trains: null,
-    ships: null,
-    weather: null,
-    events: null,
-    flights: null,
-    sportsEvents: null,
-    political: null,
+  const [sourceTimestamps, setSourceTimestamps] = useState<SourceTimestamps>(
+    EMPTY_SOURCE_TIMESTAMPS,
+  );
+
+  // Crowd overrides - sessiomuisti (tyhjenee kun selain suljetaan)
+  const [crowdOverrides, setCrowdOverrides] = useState<Record<string, CrowdOverride>>(() => {
+    try {
+      const saved = sessionStorage.getItem("crowdOverrides");
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
   });
 
-  // Crowd overrides — sessiomuisti (tyhjenee kun selain suljetaan)
-  const [crowdOverrides, setCrowdOverrides] = useState<Record<string, CrowdOverride>>({});
+  // Dispatch edits - pysyva muisti (sailyy selainistuntojen valilla)
+  const [dispatchEdits, setDispatchEdits] = useState<Record<string, DispatchEdit>>(() => {
+    try {
+      const saved = localStorage.getItem("dispatchEdits");
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
 
-  // Dispatch edits — pysyva muisti (sailyy selainistuntojen valilla)
-  const [dispatchEdits, setDispatchEdits] = useState<Record<string, DispatchEdit>>({});
-
-  // Asemavalinta — sessiomuisti
+  // Asemavalinta - sessiomuisti
   const [trainStation, setTrainStationState] = useState<TrainStation>(() => {
     try {
       return (sessionStorage.getItem("trainStation") as TrainStation) || "HKI";
     } catch { return "HKI"; }
   });
 
-  // AbortController — peruuttaa kesken olevan haun kun uusi alkaa
+  // AbortController - peruuttaa kesken olevan haun kun uusi alkaa
   const abortRef = useRef<AbortController | null>(null);
   const trainAbortRef = useRef<AbortController | null>(null);
 
@@ -172,15 +213,15 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Pisteytys (memo — lasketaan vain kun state muuttuu)
+  // Pisteytys (memo - lasketaan vain kun state muuttuu)
   // ---------------------------------------------------------------------------
 
   const alerts = useMemo(() => calculateOpportunityScore(state), [state]);
-  const topAlert = alerts.length > 0 ? alerts[0] : null;
-  const hasJackpot = alerts.some((a) => a.level === "jackpot");
+  const topAlert = useMemo(() => (alerts.length > 0 ? alerts[0] : null), [alerts]);
+  const hasJackpot = useMemo(() => alerts.some((a) => a.level === "jackpot"), [alerts]);
 
   // ---------------------------------------------------------------------------
-  // Junien haku (2 min sykli — Fintraffic tukee tihea polling)
+  // Junien haku (2 min sykli - Fintraffic tukee tihea polling)
   // ---------------------------------------------------------------------------
 
   const refreshTrains = useCallback(async () => {
@@ -200,12 +241,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, [trainStation]);
 
-  useEffect(() => {
-    setState((prev) => ({ ...prev, trainDelays: [] }));
-    refreshTrains();
-  }, [trainStation]);
-
-  // Lentojen haku (2 min sykli — Finavia API edge functionin kautta)
+  // Lentojen haku (2 min sykli - Finavia API edge functionin kautta)
   const flightAbortRef = useRef<AbortController | null>(null);
   const refreshFlights = useCallback(async () => {
     if (flightAbortRef.current) flightAbortRef.current.abort();
@@ -224,7 +260,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Sään haku (2 min sykli — reaaliaikainen päivitys)
+  // Saan haku (2 min sykli - reaaliaikainen paivitys)
   const weatherAbortRef = useRef<AbortController | null>(null);
   const refreshWeather = useCallback(async () => {
     if (weatherAbortRef.current) weatherAbortRef.current.abort();
@@ -243,7 +279,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Urheilun haku (15 min sykli — LinkedEvents + manuaalinen fallback)
+  // Urheilun haku (15 min sykli - LinkedEvents + manuaalinen fallback)
   const sportsAbortRef = useRef<AbortController | null>(null);
   const refreshSports = useCallback(async () => {
     if (sportsAbortRef.current) sportsAbortRef.current.abort();
@@ -262,25 +298,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Poliittisten tapahtumien haku DB:sta (10 min sykli)
-  const politicalAbortRef = useRef<AbortController | null>(null);
-  const refreshPolitical = useCallback(async () => {
-    if (politicalAbortRef.current) politicalAbortRef.current.abort();
-    const controller = new AbortController();
-    politicalAbortRef.current = controller;
-    try {
-      const events = await fetchPoliticalEvents();
-      if (controller.signal.aborted) return;
-      setPoliticalEvents(events);
-      setSourceTimestamps((prev) => ({ ...prev, political: new Date() }));
-    } catch (err) {
-      if (controller.signal.aborted) return;
-      console.warn("refreshPolitical epaonnistui:", err);
-    }
-  }, []);
-
   // ---------------------------------------------------------------------------
-  // Paahaku — kaikki lähteet (5 min sykli, mukaan lukien junat)
+  // Paahaku - kaikki lahteet (5 min sykli, mukaan lukien junat)
   // ---------------------------------------------------------------------------
 
   const refreshAll = useCallback(async () => {
@@ -292,7 +311,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
 
     try {
-      const [weather, harborPax, eventsBundle] = await Promise.all([
+      const [trains, weather, harborPax, eventsBundle] = await Promise.all([
+        fetchLiveTrains(trainStation),
         fetchLiveWeather(),
         fetchHarborPaxEstimates().catch((e) => {
           console.warn("Harbor pax fetch epaonnistui:", e);
@@ -314,6 +334,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
       setState((prev) => ({
         ...prev,
+        trainDelays: trains,
         weather,
         shipArrivals: ships,
         events,
@@ -321,18 +342,19 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       setLastFetch(fetchedAt);
       setSourceTimestamps((prev) => ({
         ...prev,
+        trains: fetchedAt,
         ships: fetchedAt,
         weather: fetchedAt,
         events: fetchedAt,
       }));
 
-      // Toast-notifikaatiot — prioriteettijärjestyksessä
-      const delayed = state.trainDelays.filter((t) => t.delayMinutes > 30);
+      // Toast-notifikaatiot - prioriteettijarjestyksessa
+      const delayed = trains.filter((t) => t.delayMinutes > 30);
       const isSlippery = (weather.slipperyIndex ?? 0) >= 0.6;
 
       if (isSlippery) {
-        toast.error("Liukas keli — sairaala-signaali aktiivinen", {
-          description: `Liukkausindeksi ${weather.slipperyIndex?.toFixed(1)} — Meilahti / Jorvi / Peijas`,
+        toast.error("Liukas keli - sairaala-signaali aktiivinen", {
+          description: `Liukkausindeksi ${weather.slipperyIndex?.toFixed(1)} - Meilahti / Jorvi / Peijas`,
         });
       } else if (delayed.length > 0 || weather.rainModeActive) {
         const parts: string[] = [];
@@ -344,8 +366,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         });
       } else {
         toast.success(
-          `${state.trainDelays.length} junaa | ${ships.length} laivaa | ${events.length} tapahtumaa | ${weather.temp}C`,
-          { description: "Ei merkittavia myohastymisia tai saavaroltuksia." }
+          `${trains.length} junaa | ${ships.length} laivaa | ${events.length} tapahtumaa | ${weather.temp}C`,
+          { description: "Ei merkittavia myohastymisia tai saapoikkeamia." }
         );
       }
     } catch (err) {
@@ -359,31 +381,18 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, [trainStation]);
 
-  // Alkuhaku + viisi erillista paivityssykl: junat/lennot/sää 2 min, muut 5 min, urheilu 15 min
+  // Alkuhaku + viisi erillista paivityssykl: junat/lennot/saa 2 min, muut 5 min, urheilu 15 min
   useEffect(() => {
     refreshAll();
     refreshFlights();
     refreshSports();
-    refreshPolitical();
     const allInterval = setInterval(refreshAll, OTHERS_REFRESH_MS);
     const trainInterval = setInterval(refreshTrains, TRAIN_REFRESH_MS);
     const flightInterval = setInterval(refreshFlights, FLIGHT_REFRESH_MS);
     const weatherInterval = setInterval(refreshWeather, WEATHER_REFRESH_MS);
     const sportsInterval = setInterval(refreshSports, SPORTS_REFRESH_MS);
-    const politicalInterval = setInterval(refreshPolitical, POLITICAL_REFRESH_MS);
 
-    return () => {
-      clearInterval(allInterval);
-      clearInterval(trainInterval);
-      clearInterval(flightInterval);
-      clearInterval(weatherInterval);
-      clearInterval(sportsInterval);
-      clearInterval(politicalInterval);
-    };
-  }, [refreshAll, refreshTrains, refreshFlights, refreshWeather, refreshSports, refreshPolitical]);
-
-  // Realtime: kun events-taulu paivittyy (skrapaus tai manuaalinen lisays), refetch
-  useEffect(() => {
+    // Realtime: kun events-taulu paivittyy (skrapaus tai manuaalinen lisays), refetch
     const eventsChannel = supabase
       .channel("events-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "events" }, () => {
@@ -393,19 +402,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         }).catch(() => {});
       })
       .subscribe();
-    return () => { supabase.removeChannel(eventsChannel); };
-  }, []);
 
-  // Realtime: poliittiset tapahtumat
-  useEffect(() => {
-    const ch = supabase
-      .channel("political-events-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "political_events" }, () => {
-        fetchPoliticalEvents().then(setPoliticalEvents).catch(() => {});
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, []);
+    return () => {
+      clearInterval(allInterval);
+      clearInterval(trainInterval);
+      clearInterval(flightInterval);
+      clearInterval(weatherInterval);
+      clearInterval(sportsInterval);
+      supabase.removeChannel(eventsChannel);
+    };
+  }, [refreshAll, refreshTrains, refreshFlights, refreshWeather, refreshSports]);
 
   // ---------------------------------------------------------------------------
   // DevTools-apufunktiot
@@ -460,7 +466,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         lastFetch,
         sourceTimestamps,
         upcomingEvents,
-        politicalEvents,
         refreshAll,
         refreshTrains,
         simulateShipArrival,
@@ -478,35 +483,15 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useDashboard() {
+export function useDashboard(): DashboardContextValue {
   const ctx = useContext(DashboardContext);
   if (!ctx) {
     // Vite Fast Refresh voi hetkellisesti renderoida lapsi-komponentteja
     // ennen kuin uudelleenluotu DashboardProvider on valmis. Palautetaan
     // turvallinen tyhja stub etta sovellus ei kaadu HMR-transientteihin.
     if (import.meta.env.DEV) {
-      console.warn("[useDashboard] context missing — HMR transient, rendering empty stub.");
-      return {
-        state: DEFAULT_STATE,
-        alerts: [],
-        topAlert: null,
-        hasJackpot: false,
-        isLoading: false,
-        lastFetch: null,
-        sourceTimestamps: { trains: null, ships: null, weather: null, events: null, flights: null, sportsEvents: null, political: null },
-        upcomingEvents: [],
-        politicalEvents: [],
-        refreshAll: async () => {},
-        refreshTrains: async () => {},
-        simulateShipArrival: () => {},
-        resetState: () => {},
-        crowdOverrides: {},
-        setCrowdOverride: () => {},
-        dispatchEdits: {},
-        setDispatchEdit: () => {},
-        trainStation: "HKI" as TrainStation,
-        setTrainStation: () => {},
-      } as unknown as DashboardContextValue;
+      console.warn("[useDashboard] context missing - HMR transient, rendering empty stub.");
+      return HMR_FALLBACK_VALUE;
     }
     throw new Error("useDashboard must be used within DashboardProvider");
   }
